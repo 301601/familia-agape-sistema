@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Ficha de Triagem - Comunidade Terapêutica Família Ágape</title>
+    <!-- Bibliotecas do sistema -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        #telaLogin { display:none; max-width:430px; margin:8vh auto 30px; padding:28px; background:#fff; border:1px solid #d5dbe1; border-radius:10px; box-shadow:0 5px 24px rgba(0,0,0,.08); }
+        #telaLogin h2 { margin-top:0; text-align:center; }
+        #telaLogin label { display:block; margin:12px 0 5px; font-weight:bold; }
+        #telaLogin input { width:100%; box-sizing:border-box; padding:11px; border:1px solid #aaa; border-radius:5px; }
+        #telaLogin button { width:100%; margin-top:16px; }
+        #mensagemLogin { margin-top:12px; color:#9b1c1c; white-space:pre-wrap; }
+        #areaRecuperacao { display:none; margin-top:18px; padding-top:14px; border-top:1px solid #ddd; }
+        #areaRecuperacao label { display:block; margin:12px 0 5px; font-weight:bold; }
+        #areaRecuperacao input { width:100%; box-sizing:border-box; padding:11px; border:1px solid #aaa; border-radius:5px; }
+        #areaRecuperacao button { width:100%; margin-top:12px; }
+        .link-recuperacao { display:block; text-align:center; margin-top:14px; font-size:13px; }
+        #barraConta { display:none; max-width:1100px; margin:0 auto 12px; text-align:right; font-size:12px; }
+        body.sem-sessao > :not(#telaLogin):not(script) { display:none !important; }
+        body.com-sessao #telaLogin { display:none !important; }
+        body.sem-sessao #telaLogin { display:block !important; }
+        body {
+            font-family: Arial, sans-serif;
+            color: #000;
+            margin: 0;
+            padding: 20px;
+            font-size: 13px;
+            line-height: 1.4;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .cabecalho {
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .cabecalho img {
+            max-height: 75px;
+            width: auto;
+            margin-bottom: 8px;
+        }
+        .cabecalho h1 { font-size: 16px; margin: 0 0 5px 0; text-transform: uppercase; }
+        .cabecalho h2 { font-size: 14px; margin: 0 0 5px 0; color: #444; }
+        .cabecalho p { margin: 3px 0; font-size: 12px; color: #333; }
+        
+        .titulo-ficha {
+            text-align: center;
+            font-weight: bold;
+            font-size: 15px;
+            background-color: #eee;
+            padding: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #999;
+        }
+        .secao-titulo {
+            font-weight: bold;
+            background-color: #f0f0f0;
+            padding: 5px 8px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-left: 4px solid #2c3e50;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .form-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        .form-group { flex: 1; min-width: 180px; }
+        .form-group.full { flex: 100%; }
+        
+        label { display: block; font-weight: bold; font-size: 12px; margin-bottom: 3px; }
+        input, select, textarea { color-scheme: light; color:#111 !important; background-color:#fff !important; accent-color:#2c3e50; }
+        input[type="text"], input[type="date"], input[type="password"], input[type="file"], select, textarea {
+            width: 100%;
+            padding: 6px;
+            box-sizing: border-box;
+            border: 1px solid #aaa;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        textarea { resize: vertical; height: 50px; }
+        
+        .checkbox-group, .radio-group {
+            display: flex; flex-wrap: wrap; gap: 15px; margin-top: 5px; align-items: center;
+        }
+        .checkbox-group label, .radio-group label {
+            font-weight: normal; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+        }
+        
+        .acoes { text-align: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid #ddd; }
+        .btn {
+            background-color: #2c3e50; color: white; border: none; padding: 10px 18px;
+            font-size: 13px; cursor: pointer; border-radius: 4px; margin: 0 4px;
+        }
+        .btn:hover { background-color: #34495e; }
+        .btn-success { background-color: #27ae60; }
+        .btn-success:hover { background-color: #219150; }
+        .btn-danger { background-color: #c0392b; }
+        .btn-danger:hover { background-color: #a93226; }
+
+        .historico-container {
+            max-width: 800px; margin: 30px auto; background: #fff; padding: 20px;
+            border: 1px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        th { background-color: #2c3e50; color: white; }
+
+        @media print {
+            body { background-color: #fff; padding: 0; }
+            .container { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+            .no-print, .historico-container { display: none !important; }
+            input[type="text"], input[type="date"], select, textarea {
+                border: none; border-bottom: 1px solid #000; border-radius: 0; padding: 2px 0; background: transparent;
+            }
+            .titulo-ficha, .secao-titulo { background-color: #eee !important; -webkit-print-color-adjust: exact; }
+        }
+
+        .abas { max-width: 860px; margin: 0 auto 14px; display:flex; flex-wrap:wrap; gap:8px; }
+        .aba-btn { border:1px solid #2c3e50; background:#fff; color:#2c3e50; padding:10px 15px; border-radius:4px; cursor:pointer; font-weight:bold; }
+        .aba-btn.ativa { background:#2c3e50; color:#fff; }
+        .tab-panel { display:none; }
+        .tab-panel.ativa { display:block; }
+        .aviso { background:#fff8e6; border:1px solid #e0c36b; padding:10px 12px; margin:14px 0; font-size:12px; }
+        .documentos-container { max-width:800px; margin:0 auto 30px; background:#fff; padding:25px; border:1px solid #ccc; box-shadow:0 0 10px rgba(0,0,0,.05); }
+        .assinatura-linha { border-top:1px solid #000; text-align:center; padding-top:6px; margin-top:55px; }
+        .backup-container { max-width:800px; margin:0 auto 30px; background:#fff; padding:25px; border:1px solid #ccc; box-shadow:0 0 10px rgba(0,0,0,.05); }
+        .backup-card { border:1px solid #d5dbe1; border-radius:6px; padding:16px; margin:14px 0; }
+        .backup-card h3 { margin-top:0; }
+        .backup-card input[type=password], .backup-card input[type=file] { width:100%; box-sizing:border-box; padding:9px; margin:6px 0 12px; }
+        .status-info { background:#eef5fb; border-left:4px solid #2c3e50; padding:10px 12px; margin:12px 0; font-size:12px; }
+        .status-alerta { background:#fff8e6; border-left:4px solid #d39e00; padding:10px 12px; margin:12px 0; font-size:12px; }
+        .termo-texto p { text-align:justify; }
+        .termo-texto li { margin-bottom:9px; text-align:justify; }
+        .acoes .btn { margin-bottom:7px; }
+        @media print {
+            body.imprimindo-termo #areaFicha, body.imprimindo-termo #painelDocumentos, body.imprimindo-termo #historicoFichas { display:none !important; }
+            body.imprimindo-termo #painelTermo { display:block !important; border:0; box-shadow:none; padding:0; margin:0; max-width:100%; }
+            body.imprimindo-termo .abas, body.imprimindo-termo .no-print { display:none !important; }
+            body.imprimindo-termo .assinatura-linha { break-inside:avoid; }
+            body:not(.imprimindo-termo) .tab-panel:not(.ativa) { display:none !important; }
+        }
+    </style>
+</head>
+<body class="sem-sessao">
+
+<div id="telaLogin">
+    <h2>Família Ágape</h2>
+    <p style="text-align:center">Acesso administrativo</p>
+    <form id="formLogin">
+        <label for="loginEmail">E-mail</label>
+        <input id="loginEmail" type="email" autocomplete="username" required>
+        <label for="loginSenha">Senha</label>
+        <input id="loginSenha" type="password" autocomplete="current-password" required>
+        <button type="submit" class="btn btn-success" id="botaoLogin">Entrar no sistema</button>
+    </form>
+    <div id="mensagemLogin" role="alert"></div>
+    <a href="#" class="link-recuperacao" id="linkEsqueciSenha">Esqueci minha senha</a>
+    <div id="areaRecuperacao">
+        <form id="formSolicitarRecuperacao">
+            <h3>Recuperar acesso</h3>
+            <p>Informe o e-mail do administrador. Enviaremos um link para criar uma nova senha.</p>
+            <label for="emailRecuperacao">E-mail</label>
+            <input id="emailRecuperacao" type="email" autocomplete="email" required>
+            <button type="submit" class="btn btn-success" id="botaoEnviarRecuperacao">Enviar link de recuperação</button>
+        </form>
+        <form id="formNovaSenha" style="display:none">
+            <h3>Criar nova senha</h3>
+            <label for="novaSenha">Nova senha (mínimo de 8 caracteres)</label>
+            <input id="novaSenha" type="password" autocomplete="new-password" minlength="8" required>
+            <label for="confirmarNovaSenha">Confirme a nova senha</label>
+            <input id="confirmarNovaSenha" type="password" autocomplete="new-password" minlength="8" required>
+            <button type="submit" class="btn btn-success" id="botaoSalvarNovaSenha">Salvar nova senha</button>
+        </form>
+        <div id="mensagemRecuperacao" role="status" style="margin-top:12px;white-space:pre-wrap"></div>
+        <a href="#" id="voltarLogin" class="link-recuperacao">Voltar para o login</a>
+    </div>
+    <p style="font-size:11px;color:#555;margin-top:18px">Acesso administrativo protegido pelo Supabase. As fichas serão salvas na nuvem após a integração; os documentos e o backup ainda estão em armazenamento local nesta etapa.</p>
+</div>
+<div id="barraConta" class="no-print"><span id="contaAtual"></span> &nbsp; <button type="button" class="btn" id="botaoSair" style="padding:5px 10px">Sair</button></div>
+
+<nav class="abas no-print" aria-label="Navegação do sistema">
+    <button class="aba-btn ativa" type="button" onclick="mostrarAba('ficha', this)">Ficha de triagem</button>
+    <button class="aba-btn" type="button" onclick="mostrarAba('termo', this)">Regras e compromissos</button>
+    <button class="aba-btn" type="button" onclick="mostrarAba('documentos', this)">Arquivo de documentos</button>
+    <button class="aba-btn" type="button" onclick="mostrarAba('backup', this)">Backup e restauração</button>
+</nav>
+
+<div class="container tab-panel ativa" id="areaFicha">
+    <!-- CABEÇALHO OFICIAL COM LOGÓTIPO -->
+    <div class="cabecalho">
+        <img src="Logo comunidade 1.jpg" alt="Logótipo Comunidade Família Ágape">
+        <h1>Associação Evangélica Videira - ASVIDE</h1>
+        <h2>Comunidade Terapêutica Família Ágape</h2>
+        <p><strong>Valorizando Vidas</strong> | CNPJ: 12.054.187/0001-95</p>
+        <p>Endereço: BR 364, Km 07, Setor Prosperidade, Zona Rural, Cacoal-RO, CEP: 76960-001</p>
+    </div>
+
+    <div class="titulo-ficha">FICHA DE TRIAGEM E ACOLHIMENTO</div>
+
+    <form id="formTriagem">
+        <div class="secao-titulo">Controle do acolhimento</div>
+        <div class="form-row">
+            <div class="form-group"><label>Data de entrada:</label><input type="date" name="data_entrada"></div>
+            <div class="form-group"><label>Data de saída (quando houver):</label><input type="date" name="data_saida"></div>
+            <div class="form-group"><label>Situação do acolhimento:</label>
+                <select name="situacao_acolhimento">
+                    <option value="Em acolhimento">Em acolhimento</option>
+                    <option value="Desligamento">Desligamento</option>
+                    <option value="Desistência">Desistência</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full"><label>Motivo da saída / observações:</label><textarea name="motivo_saida" placeholder="Registre o motivo quando houver desligamento ou desistência."></textarea></div>
+        </div>
+        <!-- 1. Dados Pessoais -->
+        <div class="secao-titulo">1. Dados Pessoais</div>
+        <div class="form-row">
+            <div class="form-group full"><label>Nome Completo:</label><input type="text" id="nome" name="nome"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Data de Nascimento:</label><input type="date" id="nascimento" name="nascimento"></div>
+            <div class="form-group"><label>Idade:</label><input type="text" id="idade" name="idade"></div>
+            <div class="form-group"><label>CPF:</label><input type="text" id="cpf" name="cpf"></div>
+            <div class="form-group"><label>RG:</label><input type="text" id="rg" name="rg"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Naturalidade:</label><input type="text" name="naturalidade"></div>
+            <div class="form-group"><label>Estado Civil:</label><input type="text" name="estado_civil"></div>
+            <div class="form-group"><label>Telefone:</label><input type="text" name="telefone"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full"><label>Endereço Completo (Rua, Nº, Bairro, Cidade):</label><input type="text" name="endereco"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Nome do Pai:</label><input type="text" name="pai"></div>
+            <div class="form-group"><label>Nome da Mãe:</label><input type="text" name="mae"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Responsável / Familiar de Contato:</label><input type="text" name="responsavel"></div>
+            <div class="form-group"><label>Telefone do Responsável:</label><input type="text" name="tel_responsavel"></div>
+        </div>
+
+        <!-- 2. Informações de Saúde -->
+        <div class="secao-titulo">2. Informações de Saúde</div>
+        <div class="form-row">
+            <div class="form-group full">
+                <label>Possui alguma doença diagnosticada?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="doenca" value="Sim"> Sim</label>
+                    <label><input type="radio" name="doenca" value="Nao"> Não</label>
+                    <input type="text" name="qual_doenca" placeholder="Qual?" style="flex:2;">
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full">
+                <label>Faz uso de medicação contínua?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="medicacao" value="Sim"> Sim</label>
+                    <label><input type="radio" name="medicacao" value="Nao"> Não</label>
+                    <input type="text" name="qual_medicacao" placeholder="Qual medicação?" style="flex:2;">
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full">
+                <label>Possui histórico de tratamento psiquiátrico?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="psiquiatrico" value="Sim"> Sim</label>
+                    <label><input type="radio" name="psiquiatrico" value="Nao"> Não</label>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full">
+                <label>Possui alergias?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="alergia" value="Sim"> Sim</label>
+                    <label><input type="radio" name="alergia" value="Nao"> Não</label>
+                    <input type="text" name="qual_alergia" placeholder="Qual?" style="flex:2;">
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full">
+                <label>Já foi internado por problemas relacionados ao uso de drogas?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="internado" value="Sim"> Sim</label>
+                    <label><input type="radio" name="internado" value="Nao"> Não</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Histórico de Uso de Substâncias -->
+        <div class="secao-titulo">3. Histórico de Uso de Substâncias</div>
+        <div class="form-row">
+            <div class="form-group full">
+                <label>Substâncias utilizadas:</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="substancia" value="Alcool"> Álcool</label>
+                    <label><input type="checkbox" name="substancia" value="Maconha"> Maconha</label>
+                    <label><input type="checkbox" name="substancia" value="Cocaina"> Cocaína</label>
+                    <label><input type="checkbox" name="substancia" value="Crack"> Crack</label>
+                    <label><input type="checkbox" name="substancia" value="Medicamento"> Medicamento</label>
+                    <label><input type="checkbox" name="substancia" value="Outras"> Outras</label>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Idade em que iniciou o uso:</label><input type="text" name="idade_inicio"></div>
+            <div class="form-group"><label>Tempo de dependência:</label><input type="text" name="tempo_dependencia"></div>
+            <div class="form-group"><label>Último uso:</label><input type="text" name="ultimo_uso"></div>
+            <div class="form-group"><label>Frequência de uso:</label><input type="text" name="frequencia"></div>
+        </div>
+
+        <!-- 4. Situação Familiar e Social -->
+        <div class="secao-titulo">4. Situação Familiar e Social</div>
+        <div class="form-row">
+            <div class="form-group full">
+                <label>Relação com familiares:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="relacao_familia" value="Boa"> Boa</label>
+                    <label><input type="radio" name="relacao_familia" value="Regular"> Regular</label>
+                    <label><input type="radio" name="relacao_familia" value="Ruim"> Ruim</label>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Possui filhos?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="tem_filhos" value="Sim"> Sim</label>
+                    <label><input type="radio" name="tem_filhos" value="Nao"> Não</label>
+                </div>
+            </div>
+            <div class="form-group"><label>Quantos?</label><input type="text" name="qtd_filhos"></div>
+            <div class="form-group"><label>Escolaridade:</label><input type="text" name="escolaridade"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full"><label>Profissão / Atividade exercida anteriormente:</label><input type="text" name="profissao"></div>
+        </div>
+
+        <!-- 5. Situação Jurídica -->
+        <div class="secao-titulo">5. Situação Jurídica</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Já teve problemas com a Justiça?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="prob_justica" value="Sim"> Sim</label>
+                    <label><input type="radio" name="prob_justica" value="Nao"> Não</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Possui processos em andamento?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="processos" value="Sim"> Sim</label>
+                    <label><input type="radio" name="processos" value="Nao"> Não</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Já esteve preso?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="preso" value="Sim"> Sim</label>
+                    <label><input type="radio" name="preso" value="Nao"> Não</label>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full"><label>Observações:</label><textarea name="obs_juridica"></textarea></div>
+        </div>
+
+        <!-- 6. Motivação para o Tratamento -->
+        <div class="secao-titulo">6. Motivação para o Tratamento</div>
+        <div class="form-row">
+            <div class="form-group full"><label>Motivo que levou à busca pelo tratamento:</label><textarea name="motivo_tratamento"></textarea></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full"><label>Quem indicou a comunidade terapêutica?</label><input type="text" name="indicacao"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full"><label>Expectativas em relação à recuperação:</label><textarea name="expectativas"></textarea></div>
+        </div>
+
+        <!-- 7. Declaração de Ciência das Regras -->
+        <div class="secao-titulo">7. Declaração de Ciência das Regras</div>
+        <div class="form-row">
+            <div class="form-group full">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <label><input type="checkbox" name="regra1"> Permanecer no tratamento pelo período estabelecido pela comunidade.</label>
+                    <label><input type="checkbox" name="regra2"> Respeitar a equipe e os demais acolhidos.</label>
+                    <label><input type="checkbox" name="regra3"> Participar das atividades terapêuticas, espirituais e laborais.</label>
+                    <label><input type="checkbox" name="regra4"> Não portar ou utilizar drogas, álcool ou objetos proibidos.</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. Termo de Responsabilidade -->
+        <div class="secao-titulo">8. Termo de Responsabilidade</div>
+        <p style="font-size: 12px; text-align: justify; margin-bottom: 15px;">
+            Declaro que estou ingressando voluntariamente no programa da Comunidade Terapêutica Família Ágape e que estou ciente das normas internas, comprometendo-me a cumpri-las durante todo o período de tratamento.
+        </p>
+
+        <!-- 9. Autorização de Uso de Imagem -->
+        <div class="secao-titulo">9. Autorização de Uso de Imagem</div>
+        <p style="font-size: 12px; margin-bottom: 5px;">Autorizo a Comunidade Terapêutica Família Ágape a utilizar minha imagem em fotos ou vídeos para fins institucionais e informativos, sem fins comerciais.</p>
+        <div class="radio-group" style="margin-bottom: 15px;">
+            <label><input type="radio" name="autoriza_imagem" value="Autorizo"> Autorizo</label>
+            <label><input type="radio" name="autoriza_imagem" value="Nao autorizo"> Não autorizo</label>
+        </div>
+
+        <!-- 10. Assinaturas -->
+        <div class="secao-titulo">10. Assinaturas</div>
+        <div class="form-row" style="margin-top: 40px;">
+            <div class="form-group" style="border-top: 1px solid #000; text-align: center; padding-top: 5px;">Assinatura do Acolhido</div>
+            <div class="form-group" style="border-top: 1px solid #000; text-align: center; padding-top: 5px;">Assinatura do Responsável (se houver)</div>
+        </div>
+        <div class="form-row" style="margin-top: 40px;">
+            <div class="form-group" style="border-top: 1px solid #000; text-align: center; padding-top: 5px;">Responsável pela Triagem</div>
+            <div class="form-group" style="border-top: 1px solid #000; text-align: center; padding-top: 5px;">Data: ____/____/________</div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="acoes no-print">
+            <button type="button" class="btn btn-success" onclick="guardarFicha()">Guardar Ficha</button>
+            <button type="button" class="btn" onclick="exportarPDF()">Descarregar PDF</button>
+            <button type="button" class="btn" onclick="window.print()">Imprimir</button>
+            <button type="button" class="btn btn-danger" onclick="limparFormulario()">Limpar Formulário</button>
+        </div>
+    </form>
+</div>
+
+<section class="container tab-panel" id="painelTermo">
+    <div class="cabecalho">
+        <img src="Logo comunidade 1.jpg" alt="Logótipo Comunidade Família Ágape">
+        <h1>Associação Evangélica Videira - ASVIDE</h1>
+        <h2>Comunidade Terapêutica Família Ágape</h2>
+        <p><strong>Valorizando Vidas</strong> | CNPJ: 12.054.187/0001-95</p>
+        <p>Endereço: BR 364, Km 07, Setor Prosperidade, Zona Rural, Cacoal-RO, CEP: 76960-001</p>
+    </div>
+    <div class="titulo-ficha">TERMO DE CIÊNCIA, CONCORDÂNCIA COM AS REGRAS E COMPROMISSOS</div>
+    <div class="form-row">
+        <div class="form-group"><label>Nome completo do acolhido:</label><input id="termoNome" type="text"></div>
+        <div class="form-group"><label>CPF:</label><input id="termoCpf" type="text"></div>
+    </div>
+    <div class="form-row">
+        <div class="form-group"><label>Data de ingresso:</label><input id="termoData" type="date"></div>
+        <div class="form-group"><label>Responsável/familiar de contato:</label><input id="termoResponsavel" type="text"></div>
+    </div>
+    <div class="termo-texto">
+        <p>Eu, identificado(a) acima, declaro que recebi explicações sobre o funcionamento da Comunidade Terapêutica Família Ágape, suas regras internas, atividades e compromissos. Declaro também que pude esclarecer minhas dúvidas e que minha participação no acolhimento é voluntária, respeitados meus direitos e a legislação aplicável.</p>
+        <p><strong>Estou ciente de que, durante minha permanência, devo:</strong></p>
+        <ol>
+            <li>Respeitar a dignidade, a integridade, a privacidade e os direitos dos demais acolhidos, dos funcionários, voluntários e visitantes.</li>
+            <li>Tratar com respeito a equipe responsável e os demais acolhidos, mantendo uma convivência pacífica e colaborativa.</li>
+            <li>Participar, conforme o plano individual e as orientações da equipe, das atividades terapêuticas, educativas, espirituais e laborais propostas pela entidade.</li>
+            <li>Não portar, consumir, compartilhar ou comercializar álcool, drogas ou substâncias não autorizadas, nem portar objetos proibidos pelas normas internas.</li>
+            <li>Comunicar à equipe qualquer necessidade de saúde, uso de medicamentos, alergia, mal-estar ou situação que possa colocar alguém em risco.</li>
+            <li>Zelar pelos espaços, equipamentos e materiais da entidade, mantendo os ambientes limpos e organizados.</li>
+            <li>Respeitar os horários, procedimentos de convivência e orientações institucionais que me forem apresentados.</li>
+            <li>Conversar com a equipe responsável caso tenha dúvidas, dificuldades, desejo de interromper o acolhimento ou necessidade de contato com familiares e serviços externos.</li>
+        </ol>
+        <p>Declaro que fui informado(a) de que este termo registra minha ciência e concordância com os compromissos apresentados, não significando renúncia a direitos, nem autorização para qualquer forma de tratamento degradante, constrangimento ou restrição ilegal de liberdade. Sei que posso solicitar esclarecimentos à equipe a qualquer momento.</p>
+        <p>Comprometo-me a colaborar com o meu processo de recuperação e com a boa convivência na comunidade, comunicando à equipe qualquer situação que dificulte o cumprimento destes compromissos.</p>
+    </div>
+    <div class="form-row" style="margin-top:35px">
+        <div class="form-group assinatura-linha">Assinatura do(a) acolhido(a)</div>
+        <div class="form-group assinatura-linha">Assinatura do responsável (se houver)</div>
+    </div>
+    <div class="form-row">
+        <div class="form-group assinatura-linha">Responsável pela apresentação do termo</div>
+        <div class="form-group assinatura-linha">Cacoal-RO, ____/____/________</div>
+    </div>
+    <div class="acoes no-print">
+        <button type="button" class="btn" onclick="preencherTermoDaFicha()">Puxar dados da ficha</button>
+        <button type="button" class="btn btn-success" onclick="imprimirTermo()">Imprimir termo</button>
+    </div>
+    <p class="aviso no-print">Importante: este modelo é uma base administrativa. A entidade deve revisar o texto com sua assessoria jurídica e adequá-lo às normas aplicáveis antes de utilizá-lo oficialmente.</p>
+</section>
+
+<section class="documentos-container tab-panel" id="painelDocumentos">
+    <h2>Arquivo de documentos do acolhido</h2>
+    <p>Cadastre documentos digitalizados e associe-os ao acolhido para facilitar a consulta.</p>
+    <div class="aviso"><strong>Atenção:</strong> nesta etapa, os documentos ainda ficam somente neste navegador/dispositivo. A integração com o armazenamento privado na nuvem será feita separadamente. Não arquive documentos reais de acolhidos até concluirmos essa etapa.</div>
+    <div class="form-row">
+        <div class="form-group"><label>Nome do acolhido:</label><input type="text" id="docNome" placeholder="Nome completo"></div>
+        <div class="form-group"><label>CPF (opcional):</label><input type="text" id="docCpf" placeholder="CPF"></div>
+    </div>
+    <div class="form-row">
+        <div class="form-group"><label>Tipo de documento:</label>
+            <select id="docTipo"><option value="Documento pessoal">Documento pessoal</option><option value="Documento de saúde">Documento de saúde</option><option value="Receita/medicação">Receita/medicação</option><option value="Termo assinado">Termo assinado</option><option value="Documento judicial">Documento judicial</option><option value="Outro">Outro</option></select>
+        </div>
+        <div class="form-group"><label>Descrição:</label><input type="text" id="docDescricao" placeholder="Ex.: RG frente e verso"></div>
+    </div>
+    <div class="form-row">
+        <div class="form-group full"><label>Selecionar arquivo (PDF ou imagem, até 15 MB):</label><input type="file" id="docArquivo" accept="application/pdf,image/*"></div>
+    </div>
+    <div class="acoes">
+        <button type="button" class="btn btn-success" onclick="arquivarDocumento()">Arquivar documento</button>
+    </div>
+    <h3>Documentos arquivados</h3>
+    <div class="form-row"><div class="form-group full"><label>Filtrar por nome ou CPF:</label><input type="text" id="filtroDocumentos" oninput="listarDocumentos()" placeholder="Digite o nome ou CPF"></div></div>
+    <table id="tabelaDocumentos"><thead><tr><th>Data</th><th>Acolhido</th><th>Tipo / descrição</th><th>Arquivo</th><th>Ações</th></tr></thead><tbody></tbody></table>
+</section>
+
+<section class="backup-container tab-panel" id="painelBackup">
+    <h2>Backup e restauração</h2>
+    <p>Esta versão mantém a ferramenta de backup local criptografado para dados antigos que estejam neste navegador.</p>
+    <div class="status-alerta"><strong>Importante:</strong> as fichas novas serão salvas na nuvem e ainda não estão incluídas neste backup local. Os documentos também continuam locais nesta etapa. Não use este recurso como único backup até concluirmos o backup e a restauração da nuvem. Guarde a senha do backup em local seguro.</div>
+    <div class="backup-card">
+        <h3>Exportar backup criptografado</h3>
+        <label for="senhaBackupExportar">Crie uma senha para este backup (mínimo de 12 caracteres):</label>
+        <input type="password" id="senhaBackupExportar" autocomplete="new-password" placeholder="Senha forte do backup">
+        <label for="senhaBackupConfirmar">Confirme a senha:</label>
+        <input type="password" id="senhaBackupConfirmar" autocomplete="new-password" placeholder="Repita a senha">
+        <button type="button" class="btn btn-success" onclick="exportarBackupCriptografado()">Gerar e baixar backup</button>
+    </div>
+    <div class="backup-card">
+        <h3>Restaurar backup</h3>
+        <label for="arquivoBackup">Selecione um arquivo de backup Família Ágape (.agape):</label>
+        <input type="file" id="arquivoBackup" accept=".agape,application/json">
+        <label for="senhaBackupRestaurar">Senha usada na criação do backup:</label>
+        <input type="password" id="senhaBackupRestaurar" autocomplete="current-password" placeholder="Senha do backup">
+        <button type="button" class="btn" onclick="restaurarBackupCriptografado()">Verificar e restaurar backup</button>
+        <p class="status-info">A restauração adiciona os registros que ainda não existem neste navegador. Ela não apaga os dados atuais. Faça um backup dos dados atuais antes de restaurar.</p>
+    </div>
+    <p id="statusBackup" role="status" aria-live="polite"></p>
+</section>
+
+<!-- HISTÓRICO DE FICHAS NA NUVEM -->
+<div class="historico-container no-print" id="historicoFichas">
+    <h3>Fichas cadastradas na nuvem</h3>
+    <p class="status-info" id="statusHistorico">As fichas serão carregadas da sua conta protegida no Supabase.</p>
+    <table id="tabelaHistorico">
+        <thead>
+            <tr>
+                <th>Data / Hora</th>
+                <th>Nome do Acolhido</th>
+                <th>CPF</th>
+                <th>Entrada</th>
+                <th>Saída</th>
+                <th>Situação</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Preenchido dinamicamente via JS -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+
+// Conexão de autenticação Supabase. A chave publishable pode ser usada no navegador;
+// a chave secreta/service_role nunca deve ser colocada neste arquivo.
+const SUPABASE_URL = 'https://ptymnhsppkooiswatdgw.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_Z2HHNsKsfBOcYYy0Q7lj_A_0rh_Ml2Q';
+const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+function atualizarTelaSessao(sessao) {
+    const autenticado = !!sessao?.user;
+    document.body.classList.toggle('com-sessao', autenticado);
+    document.body.classList.toggle('sem-sessao', !autenticado);
+    document.getElementById('barraConta').style.display = autenticado ? 'block' : 'none';
+    document.getElementById('contaAtual').textContent = autenticado ? 'Conectado: ' + sessao.user.email : '';
+    if (autenticado) carregarHistorico();
+    else {
+        fichasNuvem = [];
+        fichaEmEdicaoId = null;
+        renderizarHistorico();
+    }
+}
+
+function urlAtualParaRecuperacao() {
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') return null;
+    return location.origin + location.pathname + '?recovery=1';
+}
+
+function mostrarRecuperacao(modo) {
+    const area = document.getElementById('areaRecuperacao');
+    area.style.display = 'block';
+    document.getElementById('formSolicitarRecuperacao').style.display = modo === 'solicitar' ? 'block' : 'none';
+    document.getElementById('formNovaSenha').style.display = modo === 'nova' ? 'block' : 'none';
+    document.getElementById('mensagemRecuperacao').textContent = '';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const formLogin = document.getElementById('formLogin');
+    const mensagem = document.getElementById('mensagemLogin');
+    const botao = document.getElementById('botaoLogin');
+    const areaRecuperacao = document.getElementById('areaRecuperacao');
+    const mensagemRecuperacao = document.getElementById('mensagemRecuperacao');
+
+    document.getElementById('linkEsqueciSenha').addEventListener('click', (evento) => {
+        evento.preventDefault();
+        document.getElementById('emailRecuperacao').value = document.getElementById('loginEmail').value.trim();
+        mostrarRecuperacao('solicitar');
+    });
+
+    document.getElementById('voltarLogin').addEventListener('click', (evento) => {
+        evento.preventDefault();
+        areaRecuperacao.style.display = 'none';
+        mensagem.textContent = '';
+    });
+
+    formLogin.addEventListener('submit', async (evento) => {
+        evento.preventDefault();
+        mensagem.textContent = '';
+        botao.disabled = true;
+        botao.textContent = 'Verificando acesso...';
+        const email = document.getElementById('loginEmail').value.trim();
+        const senha = document.getElementById('loginSenha').value;
+        try {
+            const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password: senha });
+            if (error) throw error;
+            atualizarTelaSessao(data.session);
+            document.getElementById('loginSenha').value = '';
+        } catch (error) {
+            mensagem.textContent = 'Não foi possível entrar. Confira o e-mail e a senha. (' + (error.message || 'erro de conexão') + ')';
+        } finally {
+            botao.disabled = false;
+            botao.textContent = 'Entrar no sistema';
+        }
+    });
+
+    document.getElementById('formSolicitarRecuperacao').addEventListener('submit', async (evento) => {
+        evento.preventDefault();
+        const botaoEnviar = document.getElementById('botaoEnviarRecuperacao');
+        const email = document.getElementById('emailRecuperacao').value.trim();
+        const redirectTo = urlAtualParaRecuperacao();
+        if (!redirectTo) {
+            mensagemRecuperacao.textContent = 'Para solicitar o link, primeiro abra o sistema por um endereço http:// ou https://. Abrir o arquivo diretamente pelo computador (file://) não permite concluir a recuperação. Quando publicarmos o sistema, este endereço será configurado no Supabase.';
+            return;
+        }
+        botaoEnviar.disabled = true;
+        botaoEnviar.textContent = 'Enviando...';
+        mensagemRecuperacao.textContent = '';
+        try {
+            const { error } = await clienteSupabase.auth.resetPasswordForEmail(email, { redirectTo });
+            if (error) throw error;
+            mensagemRecuperacao.style.color = '#176b35';
+            mensagemRecuperacao.textContent = 'Se este e-mail estiver cadastrado, você receberá uma mensagem com o link para criar uma nova senha. Verifique também a pasta de spam.';
+        } catch (error) {
+            mensagemRecuperacao.style.color = '#9b1c1c';
+            mensagemRecuperacao.textContent = 'Não foi possível enviar o link: ' + (error.message || 'erro de conexão');
+        } finally {
+            botaoEnviar.disabled = false;
+            botaoEnviar.textContent = 'Enviar link de recuperação';
+        }
+    });
+
+    document.getElementById('formNovaSenha').addEventListener('submit', async (evento) => {
+        evento.preventDefault();
+        const senha = document.getElementById('novaSenha').value;
+        const confirmacao = document.getElementById('confirmarNovaSenha').value;
+        if (senha.length < 8) {
+            mensagemRecuperacao.textContent = 'A nova senha precisa ter pelo menos 8 caracteres.';
+            return;
+        }
+        if (senha !== confirmacao) {
+            mensagemRecuperacao.textContent = 'As senhas não conferem.';
+            return;
+        }
+        const botaoSalvar = document.getElementById('botaoSalvarNovaSenha');
+        botaoSalvar.disabled = true;
+        botaoSalvar.textContent = 'Salvando...';
+        try {
+            const { error } = await clienteSupabase.auth.updateUser({ password: senha });
+            if (error) throw error;
+            mensagemRecuperacao.style.color = '#176b35';
+            mensagemRecuperacao.textContent = 'Senha alterada com sucesso. Você já pode entrar no sistema com a nova senha.';
+            document.getElementById('novaSenha').value = '';
+            document.getElementById('confirmarNovaSenha').value = '';
+        } catch (error) {
+            mensagemRecuperacao.style.color = '#9b1c1c';
+            mensagemRecuperacao.textContent = 'Não foi possível alterar a senha. Abra novamente o link recebido por e-mail. (' + (error.message || 'erro de conexão') + ')';
+        } finally {
+            botaoSalvar.disabled = false;
+            botaoSalvar.textContent = 'Salvar nova senha';
+        }
+    });
+
+    document.getElementById('botaoSair').addEventListener('click', async () => {
+        const { error } = await clienteSupabase.auth.signOut();
+        if (error) alert('Não foi possível encerrar a sessão: ' + error.message);
+        else atualizarTelaSessao(null);
+    });
+
+    const { data: { session } } = await clienteSupabase.auth.getSession();
+    atualizarTelaSessao(session);
+    if (new URLSearchParams(location.search).has('recovery') && session) {
+        mostrarRecuperacao('nova');
+        mensagemRecuperacao.textContent = 'Digite e confirme sua nova senha.';
+    }
+    clienteSupabase.auth.onAuthStateChange((evento, novaSessao) => {
+        atualizarTelaSessao(novaSessao);
+        if (evento === 'PASSWORD_RECOVERY') {
+            document.body.classList.add('sem-sessao');
+            document.body.classList.remove('com-sessao');
+            mostrarRecuperacao('nova');
+            mensagemRecuperacao.textContent = 'Digite e confirme sua nova senha.';
+        }
+    });
+});
+
+let bancoDocumentos;
+function mostrarAba(aba, botao) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('ativa'));
+    document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('ativa'));
+    const painel = {ficha:'areaFicha', termo:'painelTermo', documentos:'painelDocumentos', backup:'painelBackup'}[aba];
+    document.getElementById(painel).classList.add('ativa');
+    if (botao) botao.classList.add('ativa');
+    const historico = document.getElementById('historicoFichas');
+    if (historico) historico.style.display = aba === 'ficha' ? 'block' : 'none';
+    if (aba === 'documentos') listarDocumentos();
+}
+function preencherTermoDaFicha() {
+    document.getElementById('termoNome').value = document.getElementById('nome').value;
+    document.getElementById('termoCpf').value = document.getElementById('cpf').value;
+    const responsavel = document.querySelector('[name="responsavel"]');
+    document.getElementById('termoResponsavel').value = responsavel ? responsavel.value : '';
+    document.getElementById('termoData').value = new Date().toISOString().slice(0,10);
+}
+function imprimirTermo() {
+    document.body.classList.add('imprimindo-termo');
+    window.print();
+    setTimeout(() => document.body.classList.remove('imprimindo-termo'), 700);
+}
+function abrirBancoDocumentos() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('FamiliaAgapeDocumentos', 1);
+        req.onupgradeneeded = e => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('documentos')) db.createObjectStore('documentos', {keyPath:'id'});
+        };
+        req.onsuccess = e => { bancoDocumentos = e.target.result; resolve(bancoDocumentos); };
+        req.onerror = () => reject(req.error);
+    });
+}
+async function arquivarDocumento() {
+    const nome = document.getElementById('docNome').value.trim();
+    const arquivo = document.getElementById('docArquivo').files[0];
+    if (!nome) return alert('Informe o nome do acolhido.');
+    if (!arquivo) return alert('Selecione um arquivo.');
+    if (!(arquivo.type === 'application/pdf' || arquivo.type.startsWith('image/'))) return alert('Formato não permitido. Selecione PDF ou imagem.');
+    if (arquivo.size > 15 * 1024 * 1024) return alert('O arquivo excede o limite de 15 MB.');
+    try {
+        const db = bancoDocumentos || await abrirBancoDocumentos();
+        const registro = {id:'doc_' + Date.now() + '_' + Math.random().toString(16).slice(2), nome, cpf:document.getElementById('docCpf').value.trim(), tipo:document.getElementById('docTipo').value, descricao:document.getElementById('docDescricao').value.trim(), arquivoNome:arquivo.name, mime:arquivo.type, tamanho:arquivo.size, data:new Date().toLocaleString('pt-BR'), blob:arquivo};
+        await new Promise((resolve,reject) => { const tx=db.transaction('documentos','readwrite'); tx.objectStore('documentos').add(registro); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); });
+        document.getElementById('docArquivo').value=''; document.getElementById('docDescricao').value='';
+        alert('Documento arquivado neste dispositivo.'); listarDocumentos();
+    } catch(err) { console.error(err); alert('Não foi possível arquivar o documento. Verifique o espaço disponível e tente novamente.'); }
+}
+async function listarDocumentos() {
+    const tbody=document.querySelector('#tabelaDocumentos tbody'); if (!tbody) return;
+    tbody.innerHTML='';
+    try {
+        const db=bancoDocumentos || await abrirBancoDocumentos();
+        const itens=await new Promise((resolve,reject)=>{const req=db.transaction('documentos','readonly').objectStore('documentos').getAll(); req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);});
+        const filtro=(document.getElementById('filtroDocumentos')?.value || '').toLowerCase();
+        itens.sort((a,b)=>b.id.localeCompare(a.id)).filter(x=>(x.nome+' '+x.cpf).toLowerCase().includes(filtro)).forEach(item=>{
+            const tr=document.createElement('tr');
+            [item.data,item.nome,item.tipo+(item.descricao?' — '+item.descricao:'')].forEach(valor=>{const td=document.createElement('td');td.textContent=valor;tr.appendChild(td);});
+            const tdArquivo=document.createElement('td');tdArquivo.textContent=item.arquivoNome;tr.appendChild(tdArquivo);
+            const tdAcoes=document.createElement('td');
+            const baixar=document.createElement('button');baixar.className='btn';baixar.textContent='Abrir/baixar';baixar.style.cssText='padding:4px 7px;font-size:11px';baixar.onclick=()=>baixarDocumento(item.id);
+            const excluir=document.createElement('button');excluir.className='btn btn-danger';excluir.textContent='Excluir';excluir.style.cssText='padding:4px 7px;font-size:11px';excluir.onclick=()=>excluirDocumento(item.id);
+            tdAcoes.append(baixar,excluir);tr.appendChild(tdAcoes);tbody.appendChild(tr);
+        });
+        if (!tbody.children.length) {const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=5;td.textContent='Nenhum documento encontrado.';tr.appendChild(td);tbody.appendChild(tr);}
+    } catch(err) { console.error(err); }
+}
+async function baixarDocumento(id) {
+    const db=bancoDocumentos || await abrirBancoDocumentos();
+    const item=await new Promise((resolve,reject)=>{const req=db.transaction('documentos','readonly').objectStore('documentos').get(id);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+    if (!item) return alert('Documento não encontrado.');
+    const url=URL.createObjectURL(item.blob); const a=document.createElement('a');a.href=url;a.download=item.arquivoNome;a.target='_blank';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+async function excluirDocumento(id) {
+    if (!confirm('Deseja excluir permanentemente este documento deste dispositivo?')) return;
+    const db=bancoDocumentos || await abrirBancoDocumentos();
+    await new Promise((resolve,reject)=>{const tx=db.transaction('documentos','readwrite');tx.objectStore('documentos').delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+    listarDocumentos();
+}
+
+document.addEventListener('DOMContentLoaded', () => { abrirBancoDocumentos().then(listarDocumentos).catch(console.error); });
+
+// Fichas centralizadas no Supabase. O RLS limita a leitura e a escrita ao administrador autenticado.
+let fichasNuvem = [];
+let fichaEmEdicaoId = null;
+let versaoCarregamentoHistorico = 0;
+
+function converterFichaDaNuvem(registro) {
+    return {
+        id: registro.id,
+        dataHora: registro.created_at ? new Date(registro.created_at).toLocaleString('pt-BR') : '',
+        dados: registro.ficha_dados || {}
+    };
+}
+
+function renderizarHistorico() {
+    const tbody = document.querySelector('#tabelaHistorico tbody');
+    const status = document.getElementById('statusHistorico');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!fichasNuvem.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 7;
+        td.textContent = 'Nenhuma ficha cadastrada na nuvem.';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        if (status) status.textContent = 'Conectado ao banco de dados. Ainda não há fichas cadastradas.';
+        return;
+    }
+    if (status) status.textContent = 'Fichas carregadas da nuvem com acesso protegido pela sua conta.';
+    fichasNuvem.forEach(item => {
+        const tr = document.createElement('tr');
+        const dados = item.dados || {};
+        [item.dataHora || '', dados.nome || 'N/A', dados.cpf || 'N/A', dados.data_entrada || '—', dados.data_saida || '—', dados.situacao_acolhimento || 'Em acolhimento'].forEach(valor => {
+            const td = document.createElement('td'); td.textContent = valor; tr.appendChild(td);
+        });
+        const td = document.createElement('td');
+        const carregar = document.createElement('button');
+        carregar.className = 'btn'; carregar.textContent = 'Carregar';
+        carregar.style.cssText = 'padding:3px 8px;font-size:11px';
+        carregar.onclick = () => carregarFicha(item.id);
+        const excluir = document.createElement('button');
+        excluir.className = 'btn btn-danger'; excluir.textContent = 'Excluir';
+        excluir.style.cssText = 'padding:3px 8px;font-size:11px';
+        excluir.onclick = () => eliminarFicha(item.id);
+        td.append(carregar, excluir); tr.appendChild(td); tbody.appendChild(tr);
+    });
+}
+
+async function carregarHistorico() {
+    const tbody = document.querySelector('#tabelaHistorico tbody');
+    const status = document.getElementById('statusHistorico');
+    if (!tbody) return;
+    const versao = ++versaoCarregamentoHistorico;
+    if (status) status.textContent = 'Carregando fichas da nuvem...';
+    try {
+        const { data: { session }, error: erroSessao } = await clienteSupabase.auth.getSession();
+        if (erroSessao) throw erroSessao;
+        if (!session?.user) {
+            fichasNuvem = [];
+            renderizarHistorico();
+            if (status) status.textContent = 'Entre com a conta administrativa para consultar as fichas.';
+            return;
+        }
+        const { data, error } = await clienteSupabase
+            .from('acolhidos')
+            .select('id, nome_completo, data_entrada, data_saida, tipo_saida, motivo_saida, status, ficha_dados, created_at, updated_at')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (versao !== versaoCarregamentoHistorico) return;
+        fichasNuvem = (data || []).map(converterFichaDaNuvem);
+        renderizarHistorico();
+    } catch (erro) {
+        console.error('Erro ao carregar fichas da nuvem:', erro);
+        if (versao === versaoCarregamentoHistorico && status) {
+            status.textContent = 'Não foi possível carregar as fichas da nuvem: ' + (erro.message || 'verifique a conexão e as permissões do banco.');
+        }
+    }
+}
+
+async function guardarFicha() {
+    const form = document.getElementById('formTriagem');
+    const formData = new FormData(form);
+    const dados = {};
+    formData.forEach((value, key) => {
+        if (Object.prototype.hasOwnProperty.call(dados, key)) {
+            if (!Array.isArray(dados[key])) dados[key] = [dados[key]];
+            dados[key].push(value);
+        } else dados[key] = value;
+    });
+    const nome = dados.nome ? String(dados.nome).trim() : '';
+    if (!nome) { alert('Por favor, preencha o Nome do Acolhido antes de guardar.'); return; }
+
+    const { data: { user }, error: erroUsuario } = await clienteSupabase.auth.getUser();
+    if (erroUsuario || !user) { alert('Sua sessão administrativa não está ativa. Entre novamente para guardar a ficha.'); return; }
+
+    const agora = new Date().toISOString();
+    const situacao = dados.situacao_acolhimento || 'Em acolhimento';
+    const registro = {
+        owner_id: user.id,
+        nome_completo: nome,
+        data_entrada: dados.data_entrada || null,
+        data_saida: dados.data_saida || null,
+        tipo_saida: situacao === 'Em acolhimento' ? null : situacao,
+        motivo_saida: dados.motivo_saida || null,
+        status: situacao,
+        ficha_dados: dados,
+        updated_at: agora
+    };
+
+    try {
+        let resultado;
+        if (fichaEmEdicaoId) {
+            resultado = await clienteSupabase.from('acolhidos').update(registro).eq('id', fichaEmEdicaoId).eq('owner_id', user.id).select('id').single();
+        } else {
+            registro.id = crypto.randomUUID();
+            registro.created_at = agora;
+            resultado = await clienteSupabase.from('acolhidos').insert(registro).select('id').single();
+        }
+        if (resultado.error) throw resultado.error;
+        fichaEmEdicaoId = resultado.data.id;
+        alert('Ficha de "' + nome + '" salva com sucesso na nuvem.');
+        await carregarHistorico();
+    } catch (erro) {
+        console.error('Erro ao salvar ficha:', erro);
+        alert('Não foi possível salvar a ficha na nuvem. Nenhuma confirmação de gravação foi feita. Detalhe: ' + (erro.message || 'erro inesperado'));
+    }
+}
+
+function carregarFicha(id) {
+    const item = fichasNuvem.find(f => f.id === id);
+    if (!item) { alert('Esta ficha não foi encontrada na lista da nuvem. Atualize o histórico e tente novamente.'); return; }
+    limparFormulario();
+    fichaEmEdicaoId = id;
+    const dados = item.dados || {};
+    const form = document.getElementById('formTriagem');
+    Object.keys(dados).forEach(key => {
+        const elementos = form.querySelectorAll(`[name="${key}"]`);
+        if (elementos.length > 0) {
+            const val = dados[key];
+            elementos.forEach(el => {
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = Array.isArray(val) ? val.includes(el.value) : (el.value === val || val === 'on');
+                } else el.value = val;
+            });
+        }
+    });
+    alert('Ficha carregada. Ao clicar em Guardar Ficha, as alterações serão salvas no mesmo registro da nuvem.');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function eliminarFicha(id) {
+    const item = fichasNuvem.find(f => f.id === id);
+    if (!item) return;
+    const nome = item.dados?.nome || 'esta ficha';
+    if (!confirm('Deseja excluir permanentemente da nuvem a ficha de "' + nome + '"?')) return;
+    try {
+        const { data: { user }, error: erroUsuario } = await clienteSupabase.auth.getUser();
+        if (erroUsuario || !user) throw new Error('A sessão administrativa não está ativa.');
+        const { error } = await clienteSupabase.from('acolhidos').delete().eq('id', id).eq('owner_id', user.id);
+        if (error) throw error;
+        if (fichaEmEdicaoId === id) { fichaEmEdicaoId = null; limparFormulario(); }
+        await carregarHistorico();
+        alert('Ficha excluída da nuvem.');
+    } catch (erro) {
+        console.error('Erro ao excluir ficha:', erro);
+        alert('Não foi possível excluir a ficha: ' + (erro.message || 'erro inesperado'));
+    }
+}
+
+function limparFormulario() {
+    document.getElementById('formTriagem').reset();
+    fichaEmEdicaoId = null;
+}
+
+function exportarPDF() {
+    const elemento = document.getElementById('areaFicha');
+    const botoes = document.querySelector('.acoes');
+    
+    botoes.style.display = 'none';
+
+    const nomeAcolhido = document.getElementById('nome').value || 'Acolhido';
+    const opcoes = {
+        margin:       8,
+        filename:     `Ficha_Triagem_${nomeAcolhido.replace(/\s+/g, '_')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opcoes).from(elemento).save().then(() => {
+        botoes.style.display = 'block';
+    });
+}
+
+// Backup local criptografado: AES-256-GCM com chave derivada por PBKDF2.
+function bytesParaBase64(bytes) {
+    let binario = '';
+    const bloco = 0x8000;
+    for (let i = 0; i < bytes.length; i += bloco) binario += String.fromCharCode(...bytes.subarray(i, i + bloco));
+    return btoa(binario);
+}
+function base64ParaBytes(texto) {
+    const binario = atob(texto);
+    const bytes = new Uint8Array(binario.length);
+    for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+    return bytes;
+}
+async function derivarChaveBackup(senha, salt) {
+    const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(senha), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:310000, hash:'SHA-256'}, material, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+function obterFichasLocais() {
+    const fichas = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const chave = localStorage.key(i);
+        if (chave && chave.startsWith('ficha_')) {
+            const bruto = localStorage.getItem(chave);
+            try { fichas.push({chave, valor:JSON.parse(bruto)}); } catch (_) { throw new Error('Existe uma ficha inválida no armazenamento local: ' + chave); }
+        }
+    }
+    return fichas;
+}
+async function obterDocumentosParaBackup() {
+    const db = bancoDocumentos || await abrirBancoDocumentos();
+    const itens = await new Promise((resolve,reject) => {
+        const req = db.transaction('documentos','readonly').objectStore('documentos').getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+    });
+    const saida = [];
+    for (const item of itens) {
+        const blob = item.blob instanceof Blob ? item.blob : new Blob([item.blob || new Uint8Array()], {type:item.mime || 'application/octet-stream'});
+        saida.push({...item, blobBase64:bytesParaBase64(new Uint8Array(await blob.arrayBuffer())), blobTipo:blob.type || item.mime || 'application/octet-stream'});
+        delete saida[saida.length - 1].blob;
+    }
+    return saida;
+}
+async function exportarBackupCriptografado() {
+    const status = document.getElementById('statusBackup');
+    const senha = document.getElementById('senhaBackupExportar').value;
+    const confirmar = document.getElementById('senhaBackupConfirmar').value;
+    if (senha.length < 12) { status.textContent = 'Use uma senha com pelo menos 12 caracteres.'; return; }
+    if (senha !== confirmar) { status.textContent = 'As senhas não conferem.'; return; }
+    if (!crypto?.subtle) { status.textContent = 'Este navegador não disponibilizou criptografia segura. Abra o arquivo em um navegador atualizado e tente novamente.'; return; }
+    try {
+        status.textContent = 'Preparando fichas e documentos...';
+        const dados = {aplicacao:'FamiliaAgape', versao:1, criadoEm:new Date().toISOString(), fichas:obterFichasLocais(), documentos:await obterDocumentosParaBackup()};
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const chave = await derivarChaveBackup(senha, salt);
+        const claro = new TextEncoder().encode(JSON.stringify(dados));
+        const cifrado = await crypto.subtle.encrypt({name:'AES-GCM', iv}, chave, claro);
+        const pacote = {formato:'AGAPE_BACKUP', versao:1, algoritmo:'AES-256-GCM', derivacao:'PBKDF2-SHA-256', iteracoes:310000, salt:bytesParaBase64(salt), iv:bytesParaBase64(iv), dados:bytesParaBase64(new Uint8Array(cifrado))};
+        const arquivo = new Blob([JSON.stringify(pacote)], {type:'application/vnd.familiaagape.backup+json'});
+        const url = URL.createObjectURL(arquivo);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'Backup_Familia_Agape_' + new Date().toISOString().slice(0,10) + '.agape';
+        document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
+        status.textContent = 'Backup criptografado gerado. Fichas: ' + dados.fichas.length + '; documentos: ' + dados.documentos.length + '. Guarde o arquivo e a senha separadamente.';
+    } catch (erro) {
+        console.error(erro); status.textContent = 'Não foi possível gerar o backup: ' + (erro.message || 'erro inesperado');
+    }
+}
+async function restaurarBackupCriptografado() {
+    const status = document.getElementById('statusBackup');
+    const arquivo = document.getElementById('arquivoBackup').files[0];
+    const senha = document.getElementById('senhaBackupRestaurar').value;
+    if (!arquivo) { status.textContent = 'Selecione um arquivo de backup.'; return; }
+    if (!senha) { status.textContent = 'Informe a senha do backup.'; return; }
+    if (!crypto?.subtle) { status.textContent = 'Este navegador não disponibilizou criptografia segura.'; return; }
+    if (!confirm('A restauração adicionará os registros que ainda não existem neste navegador. Deseja continuar?')) return;
+    try {
+        status.textContent = 'Verificando e descriptografando o arquivo...';
+        const pacote = JSON.parse(await arquivo.text());
+        if (pacote.formato !== 'AGAPE_BACKUP' || pacote.versao !== 1 || pacote.algoritmo !== 'AES-256-GCM') throw new Error('Arquivo não reconhecido ou versão incompatível.');
+        const chave = await derivarChaveBackup(senha, base64ParaBytes(pacote.salt));
+        const claro = await crypto.subtle.decrypt({name:'AES-GCM', iv:base64ParaBytes(pacote.iv)}, chave, base64ParaBytes(pacote.dados));
+        const dados = JSON.parse(new TextDecoder().decode(claro));
+        if (dados.aplicacao !== 'FamiliaAgape' || !Array.isArray(dados.fichas) || !Array.isArray(dados.documentos)) throw new Error('O conteúdo do backup é inválido.');
+        let fichasAdicionadas = 0, docsAdicionados = 0;
+        for (const registro of dados.fichas) {
+            if (!registro?.chave || !registro.chave.startsWith('ficha_') || !registro.valor) continue;
+            if (localStorage.getItem(registro.chave) === null) { localStorage.setItem(registro.chave, JSON.stringify(registro.valor)); fichasAdicionadas++; }
+        }
+        const db = bancoDocumentos || await abrirBancoDocumentos();
+        for (const item of dados.documentos) {
+            if (!item?.id) continue;
+            const existe = await new Promise((resolve,reject)=>{const req=db.transaction('documentos','readonly').objectStore('documentos').get(item.id);req.onsuccess=()=>resolve(!!req.result);req.onerror=()=>reject(req.error);});
+            if (existe) continue;
+            const bytes = base64ParaBytes(item.blobBase64 || '');
+            const restaurado = {...item, blob:new Blob([bytes], {type:item.blobTipo || item.mime || 'application/octet-stream'})};
+            delete restaurado.blobBase64; delete restaurado.blobTipo;
+            await new Promise((resolve,reject)=>{const tx=db.transaction('documentos','readwrite');tx.objectStore('documentos').add(restaurado);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+            docsAdicionados++;
+        }
+        carregarHistorico(); await listarDocumentos();
+        status.textContent = 'Restauração concluída. Fichas adicionadas: ' + fichasAdicionadas + '; documentos adicionados: ' + docsAdicionados + '. Registros que já existiam foram mantidos.';
+    } catch (erro) {
+        console.error(erro);
+        status.textContent = erro.name === 'OperationError' ? 'Não foi possível abrir o backup. Confira a senha ou verifique se o arquivo está íntegro.' : 'Falha na restauração: ' + (erro.message || 'arquivo inválido');
+    }
+}
+</script>
+
+</body>
+</html>
