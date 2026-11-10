@@ -184,7 +184,7 @@
         <div id="mensagemRecuperacao" role="status" style="margin-top:12px;white-space:pre-wrap"></div>
         <a href="#" id="voltarLogin" class="link-recuperacao">Voltar para o login</a>
     </div>
-    <p style="font-size:11px;color:#555;margin-top:18px">Acesso administrativo protegido pelo Supabase. As fichas e os documentos desta versão ainda permanecem neste computador/navegador; a sincronização com a nuvem será feita em uma etapa posterior.</p>
+    <p style="font-size:11px;color:#555;margin-top:18px">Acesso administrativo protegido pelo Supabase. As fichas são salvas na nuvem após confirmação do banco. Os documentos e o backup ainda permanecem em armazenamento local nesta etapa.</p>
 </div>
 <div id="barraConta" class="no-print"><span id="contaAtual"></span> &nbsp; <button type="button" class="btn" id="botaoSair" style="padding:5px 10px">Sair</button></div>
 
@@ -491,7 +491,7 @@
 <section class="documentos-container tab-panel" id="painelDocumentos">
     <h2>Arquivo de documentos do acolhido</h2>
     <p>Cadastre documentos digitalizados e associe-os ao acolhido para facilitar a consulta.</p>
-    <div class="aviso"><strong>Atenção à privacidade:</strong> os arquivos ficam armazenados somente neste navegador/dispositivo. Não há cópia automática em nuvem nem compartilhamento entre computadores. Como podem conter dados pessoais e de saúde, proteja o acesso ao computador e mantenha cópias de segurança em local seguro.</div>
+    <div class="aviso"><strong>Atenção:</strong> nesta etapa, os documentos ainda ficam somente neste navegador/dispositivo. A integração com o armazenamento privado na nuvem será feita separadamente. Não arquive documentos reais de acolhidos até concluirmos essa etapa.</div>
     <div class="form-row">
         <div class="form-group"><label>Nome do acolhido:</label><input type="text" id="docNome" placeholder="Nome completo"></div>
         <div class="form-group"><label>CPF (opcional):</label><input type="text" id="docCpf" placeholder="CPF"></div>
@@ -515,8 +515,8 @@
 
 <section class="backup-container tab-panel" id="painelBackup">
     <h2>Backup e restauração</h2>
-    <p>Crie um arquivo de segurança criptografado com as fichas e os documentos guardados neste navegador.</p>
-    <div class="status-alerta"><strong>Importante:</strong> este recurso protege e exporta os dados que estão neste computador/navegador. Ele ainda não sincroniza dados com a internet nem substitui o futuro banco de dados centralizado. Guarde a senha do backup em local seguro: sem ela, não será possível restaurar o arquivo.</div>
+    <p>Esta versão mantém a ferramenta de backup local criptografado para dados antigos que estejam neste navegador.</p>
+    <div class="status-alerta"><strong>Importante:</strong> as fichas novas serão salvas na nuvem e ainda não estão incluídas neste backup local. Os documentos também continuam locais nesta etapa. Não use este recurso como único backup até concluirmos o backup e a restauração da nuvem. Guarde a senha do backup em local seguro.</div>
     <div class="backup-card">
         <h3>Exportar backup criptografado</h3>
         <label for="senhaBackupExportar">Crie uma senha para este backup (mínimo de 12 caracteres):</label>
@@ -537,9 +537,10 @@
     <p id="statusBackup" role="status" aria-live="polite"></p>
 </section>
 
-<!-- HISTÓRICO DE FICHAS GUARDADAS LOCALMENTE -->
+<!-- HISTÓRICO DE FICHAS NA NUVEM -->
 <div class="historico-container no-print" id="historicoFichas">
-    <h3>Fichas Guardadas no Sistema (Computador Local)</h3>
+    <h3>Fichas cadastradas na nuvem</h3>
+    <p class="status-info" id="statusHistorico">As fichas serão carregadas da sua conta protegida no Supabase.</p>
     <table id="tabelaHistorico">
         <thead>
             <tr>
@@ -572,6 +573,12 @@ function atualizarTelaSessao(sessao) {
     document.body.classList.toggle('sem-sessao', !autenticado);
     document.getElementById('barraConta').style.display = autenticado ? 'block' : 'none';
     document.getElementById('contaAtual').textContent = autenticado ? 'Conectado: ' + sessao.user.email : '';
+    if (autenticado) carregarHistorico();
+    else {
+        fichasNuvem = [];
+        fichaEmEdicaoId = null;
+        renderizarHistorico();
+    }
 }
 
 function urlAtualParaRecuperacao() {
@@ -787,103 +794,181 @@ async function excluirDocumento(id) {
     listarDocumentos();
 }
 
-document.addEventListener('DOMContentLoaded', () => { carregarHistorico(); abrirBancoDocumentos().then(listarDocumentos).catch(console.error); });
+document.addEventListener('DOMContentLoaded', () => { abrirBancoDocumentos().then(listarDocumentos).catch(console.error); });
 
-function guardarFicha() {
+// Fichas centralizadas no Supabase. O RLS limita a leitura e a escrita ao administrador autenticado.
+let fichasNuvem = [];
+let fichaEmEdicaoId = null;
+let versaoCarregamentoHistorico = 0;
+
+function converterFichaDaNuvem(registro) {
+    return {
+        id: registro.id,
+        dataHora: registro.created_at ? new Date(registro.created_at).toLocaleString('pt-BR') : '',
+        dados: registro.ficha_dados || {}
+    };
+}
+
+function renderizarHistorico() {
+    const tbody = document.querySelector('#tabelaHistorico tbody');
+    const status = document.getElementById('statusHistorico');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!fichasNuvem.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 7;
+        td.textContent = 'Nenhuma ficha cadastrada na nuvem.';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        if (status) status.textContent = 'Conectado ao banco de dados. Ainda não há fichas cadastradas.';
+        return;
+    }
+    if (status) status.textContent = 'Fichas carregadas da nuvem com acesso protegido pela sua conta.';
+    fichasNuvem.forEach(item => {
+        const tr = document.createElement('tr');
+        const dados = item.dados || {};
+        [item.dataHora || '', dados.nome || 'N/A', dados.cpf || 'N/A', dados.data_entrada || '—', dados.data_saida || '—', dados.situacao_acolhimento || 'Em acolhimento'].forEach(valor => {
+            const td = document.createElement('td'); td.textContent = valor; tr.appendChild(td);
+        });
+        const td = document.createElement('td');
+        const carregar = document.createElement('button');
+        carregar.className = 'btn'; carregar.textContent = 'Carregar';
+        carregar.style.cssText = 'padding:3px 8px;font-size:11px';
+        carregar.onclick = () => carregarFicha(item.id);
+        const excluir = document.createElement('button');
+        excluir.className = 'btn btn-danger'; excluir.textContent = 'Excluir';
+        excluir.style.cssText = 'padding:3px 8px;font-size:11px';
+        excluir.onclick = () => eliminarFicha(item.id);
+        td.append(carregar, excluir); tr.appendChild(td); tbody.appendChild(tr);
+    });
+}
+
+async function carregarHistorico() {
+    const tbody = document.querySelector('#tabelaHistorico tbody');
+    const status = document.getElementById('statusHistorico');
+    if (!tbody) return;
+    const versao = ++versaoCarregamentoHistorico;
+    if (status) status.textContent = 'Carregando fichas da nuvem...';
+    try {
+        const { data: { session }, error: erroSessao } = await clienteSupabase.auth.getSession();
+        if (erroSessao) throw erroSessao;
+        if (!session?.user) {
+            fichasNuvem = [];
+            renderizarHistorico();
+            if (status) status.textContent = 'Entre com a conta administrativa para consultar as fichas.';
+            return;
+        }
+        const { data, error } = await clienteSupabase
+            .from('acolhidos')
+            .select('id, nome_completo, data_entrada, data_saida, tipo_saida, motivo_saida, status, ficha_dados, created_at, updated_at')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (versao !== versaoCarregamentoHistorico) return;
+        fichasNuvem = (data || []).map(converterFichaDaNuvem);
+        renderizarHistorico();
+    } catch (erro) {
+        console.error('Erro ao carregar fichas da nuvem:', erro);
+        if (versao === versaoCarregamentoHistorico && status) {
+            status.textContent = 'Não foi possível carregar as fichas da nuvem: ' + (erro.message || 'verifique a conexão e as permissões do banco.');
+        }
+    }
+}
+
+async function guardarFicha() {
     const form = document.getElementById('formTriagem');
     const formData = new FormData(form);
     const dados = {};
-
     formData.forEach((value, key) => {
-        if (dados[key]) {
-            if (!Array.isArray(dados[key])) {
-                dados[key] = [dados[key]];
-            }
+        if (Object.prototype.hasOwnProperty.call(dados, key)) {
+            if (!Array.isArray(dados[key])) dados[key] = [dados[key]];
             dados[key].push(value);
+        } else dados[key] = value;
+    });
+    const nome = dados.nome ? String(dados.nome).trim() : '';
+    if (!nome) { alert('Por favor, preencha o Nome do Acolhido antes de guardar.'); return; }
+
+    try {
+        const { data: { user }, error: erroUsuario } = await clienteSupabase.auth.getUser();
+        if (erroUsuario) throw erroUsuario;
+        if (!user) throw new Error('Sua sessão administrativa não está ativa. Entre novamente para guardar a ficha.');
+
+        const agora = new Date().toISOString();
+        const situacao = dados.situacao_acolhimento || 'Em acolhimento';
+        const registro = {
+            owner_id: user.id,
+            nome_completo: nome,
+            data_entrada: dados.data_entrada || null,
+            data_saida: dados.data_saida || null,
+            tipo_saida: situacao === 'Em acolhimento' ? null : situacao,
+            motivo_saida: dados.motivo_saida || null,
+            status: situacao,
+            ficha_dados: dados,
+            updated_at: agora
+        };
+
+        let resultado;
+        if (fichaEmEdicaoId) {
+            resultado = await clienteSupabase.from('acolhidos').update(registro).eq('id', fichaEmEdicaoId).eq('owner_id', user.id).select('id').single();
         } else {
-            dados[key] = value;
+            registro.id = crypto.randomUUID();
+            registro.created_at = agora;
+            resultado = await clienteSupabase.from('acolhidos').insert(registro).select('id').single();
         }
-    });
-
-    const nome = dados.nome ? dados.nome.trim() : '';
-    if (!nome) {
-        alert('Por favor, preencha o Nome do Acolhido antes de guardar.');
-        return;
+        if (resultado.error) throw resultado.error;
+        fichaEmEdicaoId = resultado.data.id;
+        alert('Ficha de "' + nome + '" salva com sucesso na nuvem.');
+        await carregarHistorico();
+    } catch (erro) {
+        console.error('Erro ao salvar ficha:', erro);
+        alert('Não foi possível salvar a ficha na nuvem. Nenhuma confirmação de gravação foi feita. Detalhe: ' + (erro.message || 'erro inesperado'));
     }
-
-    const id = 'ficha_' + new Date().getTime();
-    const dataHora = new Date().toLocaleString('pt-PT');
-
-    const objetoCadastro = {
-        id: id,
-        dataHora: dataHora,
-        dados: dados
-    };
-
-    localStorage.setItem(id, JSON.stringify(objetoCadastro));
-    alert('Ficha de "' + nome + '" guardada com sucesso!');
-    carregarHistorico();
-}
-
-function carregarHistorico() {
-    const tbody = document.querySelector('#tabelaHistorico tbody');
-    tbody.innerHTML = '';
-    const fichas = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const chave = localStorage.key(i);
-        if (chave && chave.startsWith('ficha_')) {
-            try { const item = JSON.parse(localStorage.getItem(chave)); if (item) fichas.push(item); } catch(e) { console.warn('Ficha inválida:', chave); }
-        }
-    }
-    fichas.sort((a,b) => b.id.localeCompare(a.id)).forEach(item => {
-        const tr=document.createElement('tr');
-        [item.dataHora || '', item.dados?.nome || 'N/A', item.dados?.cpf || 'N/A', item.dados?.data_entrada || '—', item.dados?.data_saida || '—', item.dados?.situacao_acolhimento || 'Em acolhimento'].forEach(valor=>{const td=document.createElement('td');td.textContent=valor;tr.appendChild(td);});
-        const td=document.createElement('td');
-        const carregar=document.createElement('button');carregar.className='btn';carregar.textContent='Carregar';carregar.style.cssText='padding:3px 8px;font-size:11px';carregar.onclick=()=>carregarFicha(item.id);
-        const excluir=document.createElement('button');excluir.className='btn btn-danger';excluir.textContent='Eliminar';excluir.style.cssText='padding:3px 8px;font-size:11px';excluir.onclick=()=>eliminarFicha(item.id);
-        td.append(carregar,excluir);tr.appendChild(td);tbody.appendChild(tr);
-    });
 }
 
 function carregarFicha(id) {
-    const item = JSON.parse(localStorage.getItem(id));
-    if (!item) return;
-
+    const item = fichasNuvem.find(f => f.id === id);
+    if (!item) { alert('Esta ficha não foi encontrada na lista da nuvem. Atualize o histórico e tente novamente.'); return; }
     limparFormulario();
-    const dados = item.dados;
+    fichaEmEdicaoId = id;
+    const dados = item.dados || {};
     const form = document.getElementById('formTriagem');
-
     Object.keys(dados).forEach(key => {
         const elementos = form.querySelectorAll(`[name="${key}"]`);
         if (elementos.length > 0) {
             const val = dados[key];
             elementos.forEach(el => {
                 if (el.type === 'checkbox' || el.type === 'radio') {
-                    if (Array.isArray(val)) {
-                        el.checked = val.includes(el.value);
-                    } else {
-                        el.checked = (el.value === val || val === 'on');
-                    }
-                } else {
-                    el.value = val;
-                }
+                    el.checked = Array.isArray(val) ? val.includes(el.value) : (el.value === val || val === 'on');
+                } else el.value = val;
             });
         }
     });
-
-    alert('Ficha carregada no formulário!');
+    alert('Ficha carregada. Ao clicar em Guardar Ficha, as alterações serão salvas no mesmo registro da nuvem.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function eliminarFicha(id) {
-    if (confirm('Tem certeza que deseja eliminar esta ficha do histórico?')) {
-        localStorage.removeItem(id);
-        carregarHistorico();
+async function eliminarFicha(id) {
+    const item = fichasNuvem.find(f => f.id === id);
+    if (!item) return;
+    const nome = item.dados?.nome || 'esta ficha';
+    if (!confirm('Deseja excluir permanentemente da nuvem a ficha de "' + nome + '"?')) return;
+    try {
+        const { data: { user }, error: erroUsuario } = await clienteSupabase.auth.getUser();
+        if (erroUsuario || !user) throw new Error('A sessão administrativa não está ativa.');
+        const { error } = await clienteSupabase.from('acolhidos').delete().eq('id', id).eq('owner_id', user.id);
+        if (error) throw error;
+        if (fichaEmEdicaoId === id) { fichaEmEdicaoId = null; limparFormulario(); }
+        await carregarHistorico();
+        alert('Ficha excluída da nuvem.');
+    } catch (erro) {
+        console.error('Erro ao excluir ficha:', erro);
+        alert('Não foi possível excluir a ficha: ' + (erro.message || 'erro inesperado'));
     }
 }
 
 function limparFormulario() {
     document.getElementById('formTriagem').reset();
+    fichaEmEdicaoId = null;
 }
 
 function exportarPDF() {
@@ -901,9 +986,14 @@ function exportarPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opcoes).from(elemento).save().then(() => {
-        botoes.style.display = 'block';
-    });
+    html2pdf().set(opcoes).from(elemento).save()
+        .catch(erro => {
+            console.error('Erro ao gerar PDF:', erro);
+            alert('Não foi possível gerar o PDF. Tente novamente.');
+        })
+        .finally(() => {
+            botoes.style.display = 'block';
+        });
 }
 
 // Backup local criptografado: AES-256-GCM com chave derivada por PBKDF2.
