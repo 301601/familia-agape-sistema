@@ -904,7 +904,7 @@ const registro = {
             data_saida: dados.data_saida || null,
             tipo_saida: situacao === 'Em acolhimento' ? null : situacao,
             motivo_saida: dados.motivo_saida || null,
-            status: situacao,
+           status: statusBanco,
             ficha_dados: dados,
             updated_at: agora
         };
