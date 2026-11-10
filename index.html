@@ -895,7 +895,9 @@ async function guardarFicha() {
 
         const agora = new Date().toISOString();
         const situacao = dados.situacao_acolhimento || 'Em acolhimento';
-        const registro = {
+const statusBanco = situacao === 'Em acolhimento' ? 'acolhido' :
+    situacao.toLowerCase().includes('desist') ? 'desistente' : 'desligado';
+const registro = {
             owner_id: user.id,
             nome_completo: nome,
             data_entrada: dados.data_entrada || null,
