@@ -1153,6 +1153,10 @@ async function exportarBackupCriptografado() {
         status.textContent = 'Backup completo gerado. Fichas na nuvem: ' + dados.fichasNuvem.length + '; documentos na nuvem: ' + dados.documentosNuvem.length + '; dados locais antigos também incluídos. Guarde o arquivo e a senha separadamente.';
     } catch (erro) {
         console.error(erro); status.textContent = 'Não foi possível gerar o backup: ' + (erro.message || 'erro inesperado');
+    } finally {
+        // Não manter a senha do backup visível/preenchida após a tentativa de exportação.
+        document.getElementById('senhaBackupExportar').value = '';
+        document.getElementById('senhaBackupConfirmar').value = '';
     }
 }
 async function restaurarBackupCriptografado() {
@@ -1242,6 +1246,10 @@ async function restaurarBackupCriptografado() {
         console.error(erro);
         const parcial = fichasNuvemAdicionadas + docsNuvemAdicionados + fichasLocaisAdicionadas + docsLocaisAdicionados;
         status.textContent = (parcial ? 'A restauração foi interrompida após adicionar parte dos dados. Os registros já restaurados foram mantidos. ' : '') + (erro.name === 'OperationError' ? 'Não foi possível abrir o backup. Confira a senha ou verifique se o arquivo está íntegro.' : 'Falha na restauração: ' + (erro.message || 'arquivo inválido'));
+    } finally {
+        // Limpar a senha e a seleção do arquivo após a tentativa de restauração.
+        document.getElementById('senhaBackupRestaurar').value = '';
+        document.getElementById('arquivoBackup').value = '';
     }
 }
 </script>
