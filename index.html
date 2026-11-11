@@ -978,7 +978,7 @@ async function guardarFicha() {
             nome_completo: nome,
             data_entrada: dados.data_entrada || null,
             data_saida: dados.data_saida || null,
-            tipo_saida: statusBanco === 'acolhido' ? null : statusBanco,
+            tipo_saida: statusBanco === 'desligado' ? 'desligamento' : statusBanco === 'desistente' ? 'desistencia' : null,
             motivo_saida: dados.motivo_saida || null,
             status: statusBanco,
             ficha_dados: dados,
