@@ -217,11 +217,12 @@
                     <option value="Em acolhimento">Em acolhimento</option>
                     <option value="Desligamento">Desligamento</option>
                     <option value="Desistência">Desistência</option>
+                    <option value="Conclusão do tratamento">Conclusão do tratamento</option>
                 </select>
             </div>
         </div>
         <div class="form-row">
-            <div class="form-group full"><label>Motivo da saída / observações:</label><textarea name="motivo_saida" placeholder="Registre o motivo quando houver desligamento ou desistência."></textarea></div>
+            <div class="form-group full"><label>Motivo da saída / observações:</label><textarea name="motivo_saida" placeholder="Registre o motivo ou observações sobre o desligamento, a desistência ou a conclusão."></textarea></div>
         </div>
         <!-- 1. Dados Pessoais -->
         <div class="secao-titulo">1. Dados Pessoais</div>
@@ -958,16 +959,17 @@ async function guardarFicha() {
         const agora = new Date().toISOString();
         const situacao = dados.situacao_acolhimento || 'Em acolhimento';
         // O formulário usa rótulos em português; a coluna status do Supabase
-        // aceita apenas: acolhido, desligado ou desistente.
+        // aceita: acolhido, desligado, desistente ou concluido.
         const statusBanco = situacao === 'Em acolhimento' ? 'acolhido'
             : situacao === 'Desligamento' ? 'desligado'
             : situacao === 'Desistência' ? 'desistente'
+            : situacao === 'Conclusão do tratamento' ? 'concluido'
             : null;
         if (!statusBanco) throw new Error('Situação de acolhimento não reconhecida: ' + situacao);
 
         // Exige a data de saída quando o acolhimento é encerrado.
-        if ((statusBanco === 'desligado' || statusBanco === 'desistente') && !dados.data_saida) {
-            alert('Informe a data de saída para registrar um desligamento ou uma desistência.');
+        if (['desligado', 'desistente', 'concluido'].includes(statusBanco) && !dados.data_saida) {
+            alert('Informe a data de saída para registrar um desligamento, uma desistência ou a conclusão do tratamento.');
             const campoDataSaida = form.querySelector('[name="data_saida"]');
             if (campoDataSaida) campoDataSaida.focus();
             return;
@@ -986,7 +988,7 @@ async function guardarFicha() {
             nome_completo: nome,
             data_entrada: dados.data_entrada || null,
             data_saida: dados.data_saida || null,
-            tipo_saida: statusBanco === 'desligado' ? 'desligamento' : statusBanco === 'desistente' ? 'desistencia' : null,
+            tipo_saida: statusBanco === 'desligado' ? 'desligamento' : statusBanco === 'desistente' ? 'desistencia' : statusBanco === 'concluido' ? 'conclusao' : null,
             motivo_saida: dados.motivo_saida || null,
             status: statusBanco,
             ficha_dados: dados,
