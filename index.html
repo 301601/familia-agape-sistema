@@ -964,6 +964,15 @@ async function guardarFicha() {
             : situacao === 'Desistência' ? 'desistente'
             : null;
         if (!statusBanco) throw new Error('Situação de acolhimento não reconhecida: ' + situacao);
+
+        // Exige a data de saída quando o acolhimento é encerrado.
+        if ((statusBanco === 'desligado' || statusBanco === 'desistente') && !dados.data_saida) {
+            alert('Informe a data de saída para registrar um desligamento ou uma desistência.');
+            const campoDataSaida = form.querySelector('[name="data_saida"]');
+            if (campoDataSaida) campoDataSaida.focus();
+            return;
+        }
+
         const registro = {
             owner_id: user.id,
             nome_completo: nome,
