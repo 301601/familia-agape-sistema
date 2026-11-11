@@ -491,7 +491,7 @@
 <section class="documentos-container tab-panel" id="painelDocumentos">
     <h2>Arquivo de documentos do acolhido</h2>
     <p>Cadastre documentos digitalizados e associe-os ao acolhido para facilitar a consulta.</p>
-    <div class="aviso"><strong>Atenção:</strong> nesta etapa, os documentos ainda ficam somente neste navegador/dispositivo. A integração com o armazenamento privado na nuvem será feita separadamente. Não arquive documentos reais de acolhidos até concluirmos essa etapa.</div>
+    <div class="aviso"><strong>Armazenamento protegido:</strong> os novos documentos serão enviados ao armazenamento privado da nuvem e associados a uma ficha já cadastrada. Os documentos antigos de teste continuam guardados neste dispositivo; eles não são apagados por esta atualização e ainda não foram migrados.</div>
     <div class="form-row">
         <div class="form-group"><label>Nome do acolhido:</label><input type="text" id="docNome" placeholder="Nome completo"></div>
         <div class="form-group"><label>CPF (opcional):</label><input type="text" id="docCpf" placeholder="CPF"></div>
@@ -573,8 +573,12 @@ function atualizarTelaSessao(sessao) {
     document.body.classList.toggle('sem-sessao', !autenticado);
     document.getElementById('barraConta').style.display = autenticado ? 'block' : 'none';
     document.getElementById('contaAtual').textContent = autenticado ? 'Conectado: ' + sessao.user.email : '';
-    if (autenticado) carregarHistorico();
-    else {
+    if (autenticado) {
+        carregarHistorico().then(() => {
+            if (document.getElementById('painelDocumentos')?.classList.contains('ativa')) listarDocumentos();
+        });
+    } else {
+        documentosNuvem = [];
         fichasNuvem = [];
         fichaEmEdicaoId = null;
         renderizarHistorico();
@@ -713,7 +717,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+// Mantém o banco local antigo intacto para que a rotina de backup legado continue funcionando.
 let bancoDocumentos;
+function abrirBancoDocumentos() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('FamiliaAgapeDocumentos', 1);
+        req.onupgradeneeded = e => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('documentos')) db.createObjectStore('documentos', {keyPath:'id'});
+        };
+        req.onsuccess = e => { bancoDocumentos = e.target.result; resolve(bancoDocumentos); };
+        req.onerror = () => reject(req.error);
+    });
+}
+const BUCKET_DOCUMENTOS = 'documentos-acolhidos';
+let documentosNuvem = [];
+
 function mostrarAba(aba, botao) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('ativa'));
     document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('ativa'));
@@ -736,65 +755,108 @@ function imprimirTermo() {
     window.print();
     setTimeout(() => document.body.classList.remove('imprimindo-termo'), 700);
 }
-function abrirBancoDocumentos() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open('FamiliaAgapeDocumentos', 1);
-        req.onupgradeneeded = e => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains('documentos')) db.createObjectStore('documentos', {keyPath:'id'});
-        };
-        req.onsuccess = e => { bancoDocumentos = e.target.result; resolve(bancoDocumentos); };
-        req.onerror = () => reject(req.error);
-    });
+function normalizarTextoDocumento(valor) {
+    return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+function interpretarTipoDocumento(valor) {
+    try { const obj = JSON.parse(valor || '{}'); if (obj && typeof obj === 'object') return obj; } catch (_) {}
+    return { mime: valor || 'application/octet-stream', categoria: 'Documento', descricao: '' };
+}
+async function obterUsuarioDocumento() {
+    const { data, error } = await clienteSupabase.auth.getUser();
+    if (error) throw error;
+    if (!data?.user) throw new Error('Sua sessão expirou. Entre novamente no sistema.');
+    return data.user;
 }
 async function arquivarDocumento() {
     const nome = document.getElementById('docNome').value.trim();
+    const cpf = document.getElementById('docCpf').value.trim();
     const arquivo = document.getElementById('docArquivo').files[0];
     if (!nome) return alert('Informe o nome do acolhido.');
     if (!arquivo) return alert('Selecione um arquivo.');
     if (!(arquivo.type === 'application/pdf' || arquivo.type.startsWith('image/'))) return alert('Formato não permitido. Selecione PDF ou imagem.');
     if (arquivo.size > 15 * 1024 * 1024) return alert('O arquivo excede o limite de 15 MB.');
     try {
-        const db = bancoDocumentos || await abrirBancoDocumentos();
-        const registro = {id:'doc_' + Date.now() + '_' + Math.random().toString(16).slice(2), nome, cpf:document.getElementById('docCpf').value.trim(), tipo:document.getElementById('docTipo').value, descricao:document.getElementById('docDescricao').value.trim(), arquivoNome:arquivo.name, mime:arquivo.type, tamanho:arquivo.size, data:new Date().toLocaleString('pt-BR'), blob:arquivo};
-        await new Promise((resolve,reject) => { const tx=db.transaction('documentos','readwrite'); tx.objectStore('documentos').add(registro); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); });
-        document.getElementById('docArquivo').value=''; document.getElementById('docDescricao').value='';
-        alert('Documento arquivado neste dispositivo.'); listarDocumentos();
-    } catch(err) { console.error(err); alert('Não foi possível arquivar o documento. Verifique o espaço disponível e tente novamente.'); }
+        const usuario = await obterUsuarioDocumento();
+        const nomeBusca = normalizarTextoDocumento(nome);
+        let correspondencias = fichasNuvem.filter(f => normalizarTextoDocumento(f.dados?.nome) === nomeBusca);
+        if (cpf) correspondencias = correspondencias.filter(f => String(f.dados?.cpf || '').replace(/\D/g, '') === cpf.replace(/\D/g, ''));
+        if (correspondencias.length === 0) return alert('Não encontrei uma ficha salva na nuvem com esse nome' + (cpf ? ' e CPF' : '') + '. Confira os dados ou salve primeiro a ficha do acolhido.');
+        if (correspondencias.length > 1) return alert('Encontrei mais de uma ficha com esse nome. Informe o CPF para identificar a ficha correta.');
+        const acolhidoId = correspondencias[0].id;
+        const id = crypto.randomUUID();
+        const nomeSeguro = arquivo.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100) || 'documento';
+        const caminho = `${usuario.id}/${acolhidoId}/${id}_${nomeSeguro}`;
+        const tipoInfo = JSON.stringify({mime: arquivo.type, categoria: document.getElementById('docTipo').value, descricao: document.getElementById('docDescricao').value.trim()});
+        const { error: erroUpload } = await clienteSupabase.storage.from(BUCKET_DOCUMENTOS).upload(caminho, arquivo, {contentType: arquivo.type, upsert: false});
+        if (erroUpload) throw erroUpload;
+        const { error: erroBanco } = await clienteSupabase.from('documentos').insert({owner_id: usuario.id, id, acolhido_id: acolhidoId, nome_arquivo: arquivo.name, caminho_arquivo: caminho, tipo_arquivo: tipoInfo, tamanho_bytes: arquivo.size});
+        if (erroBanco) {
+            await clienteSupabase.storage.from(BUCKET_DOCUMENTOS).remove([caminho]);
+            throw erroBanco;
+        }
+        document.getElementById('docArquivo').value = '';
+        document.getElementById('docDescricao').value = '';
+        alert('Documento enviado e arquivado na nuvem, vinculado à ficha de ' + (correspondencias[0].dados?.nome || nome) + '.');
+        await listarDocumentos();
+    } catch (erro) {
+        console.error('Erro ao arquivar documento na nuvem:', erro);
+        alert('Não foi possível arquivar o documento na nuvem. ' + (erro.message || 'Confira sua conexão e as permissões do Supabase.'));
+    }
 }
 async function listarDocumentos() {
-    const tbody=document.querySelector('#tabelaDocumentos tbody'); if (!tbody) return;
-    tbody.innerHTML='';
+    const tbody = document.querySelector('#tabelaDocumentos tbody'); if (!tbody) return;
+    tbody.innerHTML = '';
     try {
-        const db=bancoDocumentos || await abrirBancoDocumentos();
-        const itens=await new Promise((resolve,reject)=>{const req=db.transaction('documentos','readonly').objectStore('documentos').getAll(); req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);});
-        const filtro=(document.getElementById('filtroDocumentos')?.value || '').toLowerCase();
-        itens.sort((a,b)=>b.id.localeCompare(a.id)).filter(x=>(x.nome+' '+x.cpf).toLowerCase().includes(filtro)).forEach(item=>{
-            const tr=document.createElement('tr');
-            [item.data,item.nome,item.tipo+(item.descricao?' — '+item.descricao:'')].forEach(valor=>{const td=document.createElement('td');td.textContent=valor;tr.appendChild(td);});
-            const tdArquivo=document.createElement('td');tdArquivo.textContent=item.arquivoNome;tr.appendChild(tdArquivo);
+        const usuario = await obterUsuarioDocumento();
+        const { data, error } = await clienteSupabase.from('documentos').select('id, acolhido_id, nome_arquivo, caminho_arquivo, tipo_arquivo, tamanho_bytes, created_at').order('created_at', {ascending:false});
+        if (error) throw error;
+        documentosNuvem = data || [];
+        const filtro = normalizarTextoDocumento(document.getElementById('filtroDocumentos')?.value || '');
+        documentosNuvem.filter(item => {
+            const ficha = fichasNuvem.find(f => f.id === item.acolhido_id);
+            const info = interpretarTipoDocumento(item.tipo_arquivo);
+            return normalizarTextoDocumento((ficha?.dados?.nome || '') + ' ' + (ficha?.dados?.cpf || '') + ' ' + item.nome_arquivo + ' ' + info.categoria + ' ' + info.descricao).includes(filtro);
+        }).forEach(item => {
+            const ficha = fichasNuvem.find(f => f.id === item.acolhido_id);
+            const info = interpretarTipoDocumento(item.tipo_arquivo);
+            const tr = document.createElement('tr');
+            const dataTexto = item.created_at ? new Date(item.created_at).toLocaleString('pt-BR') : '';
+            [dataTexto, ficha?.dados?.nome || 'Ficha não localizada', info.categoria + (info.descricao ? ' — ' + info.descricao : '')].forEach(valor => { const td=document.createElement('td'); td.textContent=valor; tr.appendChild(td); });
+            const tdArquivo=document.createElement('td'); tdArquivo.textContent=item.nome_arquivo; tr.appendChild(tdArquivo);
             const tdAcoes=document.createElement('td');
-            const baixar=document.createElement('button');baixar.className='btn';baixar.textContent='Abrir/baixar';baixar.style.cssText='padding:4px 7px;font-size:11px';baixar.onclick=()=>baixarDocumento(item.id);
-            const excluir=document.createElement('button');excluir.className='btn btn-danger';excluir.textContent='Excluir';excluir.style.cssText='padding:4px 7px;font-size:11px';excluir.onclick=()=>excluirDocumento(item.id);
-            tdAcoes.append(baixar,excluir);tr.appendChild(tdAcoes);tbody.appendChild(tr);
+            const abrir=document.createElement('button'); abrir.className='btn'; abrir.textContent='Abrir/baixar'; abrir.style.cssText='padding:4px 7px;font-size:11px'; abrir.onclick=()=>baixarDocumento(item.id);
+            const excluir=document.createElement('button'); excluir.className='btn btn-danger'; excluir.textContent='Excluir'; excluir.style.cssText='padding:4px 7px;font-size:11px'; excluir.onclick=()=>excluirDocumento(item.id);
+            tdAcoes.append(abrir,excluir); tr.appendChild(tdAcoes); tbody.appendChild(tr);
         });
-        if (!tbody.children.length) {const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=5;td.textContent='Nenhum documento encontrado.';tr.appendChild(td);tbody.appendChild(tr);}
-    } catch(err) { console.error(err); }
+        if (!tbody.children.length) { const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.textContent='Nenhum documento encontrado na nuvem.'; tr.appendChild(td); tbody.appendChild(tr); }
+    } catch (erro) {
+        console.error('Erro ao listar documentos:', erro);
+        const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.textContent='Não foi possível carregar os documentos. Entre novamente ou confira a conexão.'; tr.appendChild(td); tbody.appendChild(tr);
+    }
 }
 async function baixarDocumento(id) {
-    const db=bancoDocumentos || await abrirBancoDocumentos();
-    const item=await new Promise((resolve,reject)=>{const req=db.transaction('documentos','readonly').objectStore('documentos').get(id);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
-    if (!item) return alert('Documento não encontrado.');
-    const url=URL.createObjectURL(item.blob); const a=document.createElement('a');a.href=url;a.download=item.arquivoNome;a.target='_blank';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+    try {
+        const item = documentosNuvem.find(d => d.id === id);
+        if (!item) throw new Error('Documento não encontrado. Atualize a lista e tente novamente.');
+        const { data, error } = await clienteSupabase.storage.from(BUCKET_DOCUMENTOS).createSignedUrl(item.caminho_arquivo, 60, {download: item.nome_arquivo});
+        if (error) throw error;
+        if (!data?.signedUrl) throw new Error('Não foi possível gerar o acesso temporário ao arquivo.');
+        window.open(data.signedUrl, '_blank', 'noopener');
+    } catch (erro) { console.error(erro); alert('Não foi possível abrir o documento. ' + (erro.message || '')); }
 }
 async function excluirDocumento(id) {
-    if (!confirm('Deseja excluir permanentemente este documento deste dispositivo?')) return;
-    const db=bancoDocumentos || await abrirBancoDocumentos();
-    await new Promise((resolve,reject)=>{const tx=db.transaction('documentos','readwrite');tx.objectStore('documentos').delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
-    listarDocumentos();
+    if (!confirm('Deseja excluir permanentemente este documento da nuvem?')) return;
+    try {
+        const item = documentosNuvem.find(d => d.id === id);
+        if (!item) throw new Error('Documento não encontrado. Atualize a lista.');
+        const { error: erroArquivo } = await clienteSupabase.storage.from(BUCKET_DOCUMENTOS).remove([item.caminho_arquivo]);
+        if (erroArquivo) throw erroArquivo;
+        const { error: erroBanco } = await clienteSupabase.from('documentos').delete().eq('id', id);
+        if (erroBanco) throw erroBanco;
+        await listarDocumentos();
+    } catch (erro) { console.error('Erro ao excluir documento:', erro); alert('Não foi possível concluir a exclusão. ' + (erro.message || '')); }
 }
-
-document.addEventListener('DOMContentLoaded', () => { abrirBancoDocumentos().then(listarDocumentos).catch(console.error); });
 
 // Fichas centralizadas no Supabase. O RLS limita a leitura e a escrita ao administrador autenticado.
 let fichasNuvem = [];
@@ -895,16 +957,14 @@ async function guardarFicha() {
 
         const agora = new Date().toISOString();
         const situacao = dados.situacao_acolhimento || 'Em acolhimento';
-const statusBanco = situacao === 'Em acolhimento' ? 'acolhido' :
-    situacao.toLowerCase().includes('desist') ? 'desistente' : 'desligado';
-const registro = {
+        const registro = {
             owner_id: user.id,
             nome_completo: nome,
             data_entrada: dados.data_entrada || null,
             data_saida: dados.data_saida || null,
             tipo_saida: situacao === 'Em acolhimento' ? null : situacao,
             motivo_saida: dados.motivo_saida || null,
-           status: statusBanco,
+            status: situacao,
             ficha_dados: dados,
             updated_at: agora
         };
