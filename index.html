@@ -184,7 +184,7 @@
         <div id="mensagemRecuperacao" role="status" style="margin-top:12px;white-space:pre-wrap"></div>
         <a href="#" id="voltarLogin" class="link-recuperacao">Voltar para o login</a>
     </div>
-    <p style="font-size:11px;color:#555;margin-top:18px">Acesso administrativo protegido pelo Supabase. As fichas são salvas na nuvem após confirmação do banco. Os documentos e o backup ainda permanecem em armazenamento local nesta etapa.</p>
+    <p style="font-size:11px;color:#555;margin-top:18px">Acesso administrativo protegido pelo Supabase. Fichas e documentos são armazenados na nuvem. Use a área de backup para exportar uma cópia criptografada.</p>
 </div>
 <div id="barraConta" class="no-print"><span id="contaAtual"></span> &nbsp; <button type="button" class="btn" id="botaoSair" style="padding:5px 10px">Sair</button></div>
 
@@ -515,10 +515,10 @@
 
 <section class="backup-container tab-panel" id="painelBackup">
     <h2>Backup e restauração</h2>
-    <p>Esta versão mantém a ferramenta de backup local criptografado para dados antigos que estejam neste navegador.</p>
-    <div class="status-alerta"><strong>Importante:</strong> as fichas novas serão salvas na nuvem e ainda não estão incluídas neste backup local. Os documentos também continuam locais nesta etapa. Não use este recurso como único backup até concluirmos o backup e a restauração da nuvem. Guarde a senha do backup em local seguro.</div>
+    <p>Gere um arquivo criptografado com as fichas e os documentos da nuvem, além dos dados antigos que ainda estejam neste navegador.</p>
+    <div class="status-alerta"><strong>Importante:</strong> o backup da nuvem exige conexão e sessão administrativa ativa. O arquivo inclui dados pessoais e documentos: guarde-o em local seguro e mantenha a senha separada. A restauração envia os dados para a conta administrativa conectada e não substitui nem apaga registros existentes.</div>
     <div class="backup-card">
-        <h3>Exportar backup criptografado</h3>
+        <h3>Exportar backup completo criptografado</h3>
         <label for="senhaBackupExportar">Crie uma senha para este backup (mínimo de 12 caracteres):</label>
         <input type="password" id="senhaBackupExportar" autocomplete="new-password" placeholder="Senha forte do backup">
         <label for="senhaBackupConfirmar">Confirme a senha:</label>
@@ -526,7 +526,7 @@
         <button type="button" class="btn btn-success" onclick="exportarBackupCriptografado()">Gerar e baixar backup</button>
     </div>
     <div class="backup-card">
-        <h3>Restaurar backup</h3>
+        <h3>Restaurar backup criptografado</h3>
         <label for="arquivoBackup">Selecione um arquivo de backup Família Ágape (.agape):</label>
         <input type="file" id="arquivoBackup" accept=".agape,application/json">
         <label for="senhaBackupRestaurar">Senha usada na criação do backup:</label>
@@ -1116,8 +1116,29 @@ async function exportarBackupCriptografado() {
     if (senha !== confirmar) { status.textContent = 'As senhas não conferem.'; return; }
     if (!crypto?.subtle) { status.textContent = 'Este navegador não disponibilizou criptografia segura. Abra o arquivo em um navegador atualizado e tente novamente.'; return; }
     try {
-        status.textContent = 'Preparando fichas e documentos...';
-        const dados = {aplicacao:'FamiliaAgape', versao:1, criadoEm:new Date().toISOString(), fichas:obterFichasLocais(), documentos:await obterDocumentosParaBackup()};
+        status.textContent = 'Conectando à nuvem e preparando fichas...';
+        const usuario = await obterUsuarioDocumento();
+        const { data: fichasCloud, error: erroFichas } = await clienteSupabase.from('acolhidos')
+            .select('id, nome_completo, data_entrada, data_saida, tipo_saida, motivo_saida, status, ficha_dados, created_at, updated_at')
+            .order('created_at', {ascending:true});
+        if (erroFichas) throw erroFichas;
+        const { data: docsCloud, error: erroDocs } = await clienteSupabase.from('documentos')
+            .select('id, acolhido_id, nome_arquivo, caminho_arquivo, tipo_arquivo, tamanho_bytes, created_at')
+            .order('created_at', {ascending:true});
+        if (erroDocs) throw erroDocs;
+        const documentosCloudBackup = [];
+        for (let i = 0; i < (docsCloud || []).length; i++) {
+            const item = docsCloud[i];
+            status.textContent = 'Baixando documento da nuvem ' + (i + 1) + ' de ' + docsCloud.length + '...';
+            const { data: blob, error: erroDownload } = await clienteSupabase.storage.from(BUCKET_DOCUMENTOS).download(item.caminho_arquivo);
+            if (erroDownload) throw new Error('Não foi possível incluir o documento "' + item.nome_arquivo + '" no backup: ' + erroDownload.message);
+            documentosCloudBackup.push({...item, blobBase64:bytesParaBase64(new Uint8Array(await blob.arrayBuffer())), blobTipo:blob.type || interpretarTipoDocumento(item.tipo_arquivo).mime || 'application/octet-stream'});
+        }
+        const dados = {
+            aplicacao:'FamiliaAgape', versao:2, criadoEm:new Date().toISOString(), conta:usuario.email || '',
+            fichasNuvem:fichasCloud || [], documentosNuvem:documentosCloudBackup,
+            fichasLocais:obterFichasLocais(), documentosLocais:await obterDocumentosParaBackup()
+        };
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const iv = crypto.getRandomValues(new Uint8Array(12));
         const chave = await derivarChaveBackup(senha, salt);
@@ -1129,7 +1150,7 @@ async function exportarBackupCriptografado() {
         const link = document.createElement('a');
         link.href = url; link.download = 'Backup_Familia_Agape_' + new Date().toISOString().slice(0,10) + '.agape';
         document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
-        status.textContent = 'Backup criptografado gerado. Fichas: ' + dados.fichas.length + '; documentos: ' + dados.documentos.length + '. Guarde o arquivo e a senha separadamente.';
+        status.textContent = 'Backup completo gerado. Fichas na nuvem: ' + dados.fichasNuvem.length + '; documentos na nuvem: ' + dados.documentosNuvem.length + '; dados locais antigos também incluídos. Guarde o arquivo e a senha separadamente.';
     } catch (erro) {
         console.error(erro); status.textContent = 'Não foi possível gerar o backup: ' + (erro.message || 'erro inesperado');
     }
@@ -1141,22 +1162,28 @@ async function restaurarBackupCriptografado() {
     if (!arquivo) { status.textContent = 'Selecione um arquivo de backup.'; return; }
     if (!senha) { status.textContent = 'Informe a senha do backup.'; return; }
     if (!crypto?.subtle) { status.textContent = 'Este navegador não disponibilizou criptografia segura.'; return; }
-    if (!confirm('A restauração adicionará os registros que ainda não existem neste navegador. Deseja continuar?')) return;
+    if (!confirm('A restauração adicionará à nuvem e a este navegador somente os registros que ainda não existem. Nenhum registro atual será apagado. Deseja continuar?')) return;
+    let fichasNuvemAdicionadas = 0, docsNuvemAdicionados = 0, fichasLocaisAdicionadas = 0, docsLocaisAdicionados = 0;
     try {
         status.textContent = 'Verificando e descriptografando o arquivo...';
         const pacote = JSON.parse(await arquivo.text());
-        if (pacote.formato !== 'AGAPE_BACKUP' || pacote.versao !== 1 || pacote.algoritmo !== 'AES-256-GCM') throw new Error('Arquivo não reconhecido ou versão incompatível.');
+        if (pacote.formato !== 'AGAPE_BACKUP' || ![1,2].includes(pacote.versao) || pacote.algoritmo !== 'AES-256-GCM') throw new Error('Arquivo não reconhecido ou versão incompatível.');
         const chave = await derivarChaveBackup(senha, base64ParaBytes(pacote.salt));
         const claro = await crypto.subtle.decrypt({name:'AES-GCM', iv:base64ParaBytes(pacote.iv)}, chave, base64ParaBytes(pacote.dados));
         const dados = JSON.parse(new TextDecoder().decode(claro));
-        if (dados.aplicacao !== 'FamiliaAgape' || !Array.isArray(dados.fichas) || !Array.isArray(dados.documentos)) throw new Error('O conteúdo do backup é inválido.');
-        let fichasAdicionadas = 0, docsAdicionados = 0;
-        for (const registro of dados.fichas) {
+        if (dados.aplicacao !== 'FamiliaAgape') throw new Error('O conteúdo do backup não pertence ao sistema Família Ágape.');
+        const usuario = await obterUsuarioDocumento();
+
+        // Compatibilidade com backups locais antigos (versão 1) e restauração dos dados locais incluídos na versão 2.
+        const fichasLocais = dados.fichasLocais || dados.fichas || [];
+        const documentosLocais = dados.documentosLocais || dados.documentos || [];
+        if (!Array.isArray(fichasLocais) || !Array.isArray(documentosLocais)) throw new Error('A parte local do backup é inválida.');
+        for (const registro of fichasLocais) {
             if (!registro?.chave || !registro.chave.startsWith('ficha_') || !registro.valor) continue;
-            if (localStorage.getItem(registro.chave) === null) { localStorage.setItem(registro.chave, JSON.stringify(registro.valor)); fichasAdicionadas++; }
+            if (localStorage.getItem(registro.chave) === null) { localStorage.setItem(registro.chave, JSON.stringify(registro.valor)); fichasLocaisAdicionadas++; }
         }
         const db = bancoDocumentos || await abrirBancoDocumentos();
-        for (const item of dados.documentos) {
+        for (const item of documentosLocais) {
             if (!item?.id) continue;
             const existe = await new Promise((resolve,reject)=>{const req=db.transaction('documentos','readonly').objectStore('documentos').get(item.id);req.onsuccess=()=>resolve(!!req.result);req.onerror=()=>reject(req.error);});
             if (existe) continue;
@@ -1164,13 +1191,57 @@ async function restaurarBackupCriptografado() {
             const restaurado = {...item, blob:new Blob([bytes], {type:item.blobTipo || item.mime || 'application/octet-stream'})};
             delete restaurado.blobBase64; delete restaurado.blobTipo;
             await new Promise((resolve,reject)=>{const tx=db.transaction('documentos','readwrite');tx.objectStore('documentos').add(restaurado);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
-            docsAdicionados++;
+            docsLocaisAdicionados++;
         }
-        carregarHistorico(); await listarDocumentos();
-        status.textContent = 'Restauração concluída. Fichas adicionadas: ' + fichasAdicionadas + '; documentos adicionados: ' + docsAdicionados + '. Registros que já existiam foram mantidos.';
+
+        // Versão 1 contém somente dados locais. Versão 2 também restaura fichas e arquivos no Supabase.
+        if (dados.versao >= 2) {
+            if (!Array.isArray(dados.fichasNuvem) || !Array.isArray(dados.documentosNuvem)) throw new Error('A parte da nuvem no backup está incompleta.');
+            const { data: fichasAtuais, error: erroListaFichas } = await clienteSupabase.from('acolhidos').select('id');
+            if (erroListaFichas) throw erroListaFichas;
+            const idsFichas = new Set((fichasAtuais || []).map(x => x.id));
+            for (const ficha of dados.fichasNuvem) {
+                if (!ficha?.id || idsFichas.has(ficha.id)) continue;
+                status.textContent = 'Restaurando ficha ' + (fichasNuvemAdicionadas + 1) + '...';
+                const registro = {
+                    owner_id:usuario.id, id:ficha.id, nome_completo:ficha.nome_completo,
+                    data_entrada:ficha.data_entrada || null, data_saida:ficha.data_saida || null,
+                    tipo_saida:ficha.tipo_saida || null, motivo_saida:ficha.motivo_saida || null,
+                    status:ficha.status, ficha_dados:ficha.ficha_dados || {},
+                    created_at:ficha.created_at, updated_at:ficha.updated_at || new Date().toISOString()
+                };
+                const { error } = await clienteSupabase.from('acolhidos').insert(registro);
+                if (error) throw new Error('Falha ao restaurar a ficha "' + (ficha.nome_completo || ficha.id) + '": ' + error.message);
+                idsFichas.add(ficha.id); fichasNuvemAdicionadas++;
+            }
+            const { data: docsAtuais, error: erroListaDocs } = await clienteSupabase.from('documentos').select('id');
+            if (erroListaDocs) throw erroListaDocs;
+            const idsDocs = new Set((docsAtuais || []).map(x => x.id));
+            for (const item of dados.documentosNuvem) {
+                if (!item?.id || idsDocs.has(item.id)) continue;
+                if (!idsFichas.has(item.acolhido_id)) throw new Error('O documento "' + (item.nome_arquivo || item.id) + '" não foi restaurado porque sua ficha vinculada não existe no backup nem na nuvem.');
+                status.textContent = 'Restaurando documento ' + (docsNuvemAdicionados + 1) + '...';
+                const bytes = base64ParaBytes(item.blobBase64 || '');
+                const blob = new Blob([bytes], {type:item.blobTipo || interpretarTipoDocumento(item.tipo_arquivo).mime || 'application/octet-stream'});
+                const nomeSeguro = String(item.nome_arquivo || 'documento').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100) || 'documento';
+                const caminho = usuario.id + '/' + item.acolhido_id + '/' + item.id + '_restaurado_' + crypto.randomUUID() + '_' + nomeSeguro;
+                const { error: erroUpload } = await clienteSupabase.storage.from(BUCKET_DOCUMENTOS).upload(caminho, blob, {contentType:blob.type, upsert:false});
+                if (erroUpload) throw new Error('Falha ao enviar o arquivo "' + item.nome_arquivo + '" para a nuvem: ' + erroUpload.message);
+                const registroDoc = {owner_id:usuario.id, id:item.id, acolhido_id:item.acolhido_id, nome_arquivo:item.nome_arquivo, caminho_arquivo:caminho, tipo_arquivo:item.tipo_arquivo || null, tamanho_bytes:blob.size};
+                const { error: erroInsertDoc } = await clienteSupabase.from('documentos').insert(registroDoc);
+                if (erroInsertDoc) {
+                    await clienteSupabase.storage.from(BUCKET_DOCUMENTOS).remove([caminho]);
+                    throw new Error('O arquivo "' + item.nome_arquivo + '" foi enviado, mas não foi possível registrar seus dados: ' + erroInsertDoc.message);
+                }
+                idsDocs.add(item.id); docsNuvemAdicionados++;
+            }
+        }
+        await carregarHistorico(); await listarDocumentos();
+        status.textContent = 'Restauração concluída. Nuvem — fichas adicionadas: ' + fichasNuvemAdicionadas + '; documentos adicionados: ' + docsNuvemAdicionados + '. Neste navegador — fichas antigas: ' + fichasLocaisAdicionadas + '; documentos antigos: ' + docsLocaisAdicionados + '. Registros que já existiam foram mantidos.';
     } catch (erro) {
         console.error(erro);
-        status.textContent = erro.name === 'OperationError' ? 'Não foi possível abrir o backup. Confira a senha ou verifique se o arquivo está íntegro.' : 'Falha na restauração: ' + (erro.message || 'arquivo inválido');
+        const parcial = fichasNuvemAdicionadas + docsNuvemAdicionados + fichasLocaisAdicionadas + docsLocaisAdicionados;
+        status.textContent = (parcial ? 'A restauração foi interrompida após adicionar parte dos dados. Os registros já restaurados foram mantidos. ' : '') + (erro.name === 'OperationError' ? 'Não foi possível abrir o backup. Confira a senha ou verifique se o arquivo está íntegro.' : 'Falha na restauração: ' + (erro.message || 'arquivo inválido'));
     }
 }
 </script>
