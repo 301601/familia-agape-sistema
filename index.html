@@ -178,12 +178,12 @@ body.com-sessao #contaAtual{border:1px solid var(--line);border-radius:20px;padd
 .dashboard{max-width:none;margin:0}.dashboard-titulo{display:flex;justify-content:space-between;align-items:start;gap:16px;margin:0 0 32px}
 .dashboard-titulo h2{font-size:29px;margin:0 0 8px}.dashboard-titulo p,.bloco-cabecalho p{color:var(--muted);margin:0;font-size:14px}
 .btn-atualizar{background:#fff;color:#0c2742;border:1px solid var(--line);white-space:nowrap}
-.indicadores{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-bottom:32px}
+.indicadores{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px;margin-bottom:32px}
 .indicador{position:relative;box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:15px;padding:25px 23px;min-height:160px}
 .indicador>span{display:block;color:var(--muted);font-size:13px;margin-bottom:10px}
 .indicador strong{font-size:36px;display:block;margin-bottom:15px}
 .indicador small{border-top:1px solid var(--line);display:block;padding-top:14px;color:#64748b;font-size:11px}
-.indicador:nth-child(1) small{color:#059669}.indicador:nth-child(2) small{color:#c77700}.indicador:nth-child(3) small{color:#e64770}.indicador:nth-child(4) small{color:#008cc2}
+.indicador:nth-child(1) small{color:#059669}.indicador:nth-child(2) small{color:#c77700}.indicador:nth-child(3) small{color:#e64770}.indicador:nth-child(4) small{color:#e64770}.indicador:nth-child(5) small{color:#008cc2}
 .indicador-icone{position:absolute;right:22px;top:23px;width:46px;height:46px;display:grid;place-items:center;border-radius:12px;font-size:25px}
 .indicador-icone.verde{background:#e9fbf3;color:#059669}.indicador-icone.laranja{background:#fff7e6;color:#ed9200}.indicador-icone.rosa{background:#fff0f3;color:#e64770}.indicador-icone.azul{background:#eef8ff;color:#144668}
 .dashboard-bloco{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px 30px;margin-bottom:30px}
@@ -195,7 +195,7 @@ body.com-sessao #contaAtual{border:1px solid var(--line);border-radius:20px;padd
 .atalho.destaque{background:#059669;color:#fff;border-color:#059669}.atalho.destaque small{color:#fff}.atalho.destaque .atalho-icone{background:#20a980;color:#fff;border-color:#20a980}
 .movimentos{padding:0;overflow:hidden}.movimentos .bloco-cabecalho{padding:24px 25px;margin:0}.link-fichas{background:none;border:0;cursor:pointer;color:#0c2742;font-weight:bold}
 .tabela-scroll{overflow-x:auto}.tabela-dashboard{margin:0}.tabela-dashboard th{background:#f6f9fd;color:#5e7491;border:0;border-top:1px solid var(--line);font-size:11px;letter-spacing:.4px}.tabela-dashboard td{border:0;border-top:1px solid var(--line);font-size:13px;padding:16px}
-.situacao-tag{border-radius:30px;padding:6px 11px;background:#f0f4f8;color:#53677e}.situacao-tag.acolhido{background:#e9fbf3;color:#059669}.situacao-tag.desligado{background:#fff6e6;color:#c77700}.situacao-tag.desistente{background:#fff0f3;color:#d63b65}
+.situacao-tag{border-radius:30px;padding:6px 11px;background:#f0f4f8;color:#53677e}.situacao-tag.acolhido{background:#e9fbf3;color:#059669}.situacao-tag.desligado{background:#fff6e6;color:#c77700}.situacao-tag.desistente{background:#fff0f3;color:#d63b65}.situacao-tag.concluido{background:#e9fbf3;color:#047857}
 .rodape-dashboard{border-top:1px solid var(--line);padding:20px 0;color:#91a3bd;font-size:11px}.rodape-dashboard span{float:right}
 body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao .documentos-container,body.com-sessao .backup-container{max-width:950px;box-sizing:border-box}
 @media(max-width:1250px){.indicadores,.atalhos{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -311,6 +311,13 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
   body.imprimindo-termo #painelTermo input[type="date"]#termoData {display:none!important;visibility:hidden!important;width:0!important;height:0!important;padding:0!important;border:0!important;}
   body.imprimindo-termo #painelTermo #termoDataImpressa {display:inline-block!important;visibility:visible!important;border-bottom:1px solid #222!important;min-width:125px!important;text-align:center!important;}
 }
+
+/* Campo de pesquisa mais amplo e confortável. */
+.pesquisa-acolhidos { width:100%; box-sizing:border-box; margin:16px 0; }
+.pesquisa-acolhidos label {display:block; margin-bottom:8px;}
+#pesquisaNomeAcolhido {display:block; width:100%; min-height:52px; box-sizing:border-box; padding:12px 16px; font-size:16px; border:1px solid #9cacc0; border-radius:9px; background:#fff; color:#10243e;}
+#pesquisaNomeAcolhido:focus {outline:2px solid #2975ae; outline-offset:1px;}
+#resultadoPesquisaAcolhidos {display:block; margin-top:7px;}
 </style>
 </head>
 <body class="sem-sessao">
@@ -368,7 +375,8 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
   <div class="dashboard-titulo"><div><h2>Painel administrativo</h2><p>Visão geral dos acolhidos da Comunidade Terapêutica Família Ágape</p></div><button class="btn btn-atualizar" type="button" onclick="carregarHistorico()">↻ &nbsp; Atualizar indicadores</button></div>
   <div class="indicadores">
     <article class="indicador"><div class="indicador-icone verde">♡</div><span>Em acolhimento</span><strong id="indicadorAtivos">—</strong><small>● Ativos na comunidade</small></article>
-    <article class="indicador"><div class="indicador-icone laranja">♧</div><span>Desligamentos</span><strong id="indicadorDesligados">—</strong><small>● Concluídos / encaminhados</small></article>
+    <article class="indicador"><div class="indicador-icone verde">✓</div><span>Conclusões</span><strong id="indicadorConcluidos">—</strong><small>● Programa terapêutico concluído</small></article>
+    <article class="indicador"><div class="indicador-icone laranja">♧</div><span>Desligamentos</span><strong id="indicadorDesligados">—</strong><small>● Saídas por desligamento</small></article>
     <article class="indicador"><div class="indicador-icone rosa">♙</div><span>Desistências</span><strong id="indicadorDesistentes">—</strong><small>● Saídas antecipadas</small></article>
     <article class="indicador"><div class="indicador-icone azul">▤</div><span>Total de fichas</span><strong id="indicadorTotal">—</strong><small>● Histórico geral registrado</small></article>
   </div>
@@ -925,15 +933,16 @@ function abrirAreaDashboard(aba) {
   mostrarAba(aba,botao);
 }
 function limparDashboard(mensagem) {
-  ['indicadorAtivos','indicadorDesligados','indicadorDesistentes','indicadorTotal'].forEach(id=>document.getElementById(id).textContent='—');
+  ['indicadorAtivos','indicadorConcluidos','indicadorDesligados','indicadorDesistentes','indicadorTotal'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('statusDashboard').textContent=mensagem;
   document.getElementById('movimentacoesDashboard').innerHTML='<tr><td colspan="3">Nenhum dado disponível.</td></tr>';
 }
 function preencherDashboard(registros) {
   const lista=registros || [];
-  const contagem={acolhido:0,desligado:0,desistente:0};
+  const contagem={acolhido:0,concluido:0,desligado:0,desistente:0};
   lista.forEach(r=>{if(Object.prototype.hasOwnProperty.call(contagem,r.status)) contagem[r.status]++;});
   document.getElementById('indicadorAtivos').textContent=contagem.acolhido;
+  document.getElementById('indicadorConcluidos').textContent=contagem.concluido;
   document.getElementById('indicadorDesligados').textContent=contagem.desligado;
   document.getElementById('indicadorDesistentes').textContent=contagem.desistente;
   document.getElementById('indicadorTotal').textContent=lista.length;
@@ -948,7 +957,7 @@ function preencherDashboard(registros) {
     if(r.data_entrada){const partes=r.data_entrada.split('-');entrada.textContent=partes.length===3?partes.reverse().join('/'):r.data_entrada;} else entrada.textContent='—';
     const situacao=tr.insertCell();
     const etiqueta=document.createElement('span');etiqueta.className='situacao-tag '+(r.status||'');
-    etiqueta.textContent=({acolhido:'Em acolhimento',desligado:'Desligamento',desistente:'Desistência'})[r.status]||'Não informado';
+    etiqueta.textContent=({acolhido:'Em acolhimento',desligado:'Desligamento',desistente:'Desistência',concluido:'Conclusão do tratamento'})[r.status]||'Não informado';
     situacao.appendChild(etiqueta);
   });
 }
@@ -1521,6 +1530,19 @@ async function restaurarBackupCriptografado() {
         document.getElementById('arquivoBackup').value = '';
     }
 }
+
+// Na ficha de triagem, Enter avança para o próximo campo editável.
+// Em observações (textarea), Enter continua criando uma nova linha.
+document.getElementById('formTriagem')?.addEventListener('keydown', function(event) {
+    if (event.key !== 'Enter' || event.isComposing || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+    const atual = event.target;
+    if (!atual.matches('input[type="text"], input[type="date"], input[type="number"], input[type="email"], input[type="tel"], select')) return;
+    const campos = [...this.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], input[type="email"], input[type="tel"], select, textarea')].filter(el => !el.disabled && !el.readOnly && el.getClientRects().length > 0);
+    const indice = campos.indexOf(atual);
+    if (indice < 0) return;
+    event.preventDefault();
+    if (indice + 1 < campos.length) campos[indice + 1].focus();
+});
 </script>
 
 </body>
