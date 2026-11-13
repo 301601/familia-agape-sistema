@@ -202,6 +202,115 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
 @media(max-width:850px){body.com-sessao{padding-left:0}.menu-sistema{position:relative;width:auto;bottom:auto;padding:10px 15px}.marca-menu{margin:0;padding:10px 0;min-height:0}.menu-rotulo,.menu-seguranca{display:none}body.com-sessao .abas{flex-direction:row;flex-wrap:wrap}body.com-sessao .aba-btn{width:auto;padding:10px}.topo-sistema{padding:0 15px}.conteudo-sistema{padding:22px 12px}.dashboard-titulo,.bloco-cabecalho{flex-wrap:wrap}.rodape-dashboard span{float:none;display:block;margin-top:8px}}
 @media(max-width:500px){.indicadores,.atalhos{grid-template-columns:1fr}.dashboard-bloco{padding:18px}.dashboard-titulo h2{font-size:24px}}
 @media print{body.com-sessao{padding:0!important;background:#fff}.menu-sistema,.topo-sistema,.dashboard{display:none!important}.conteudo-sistema{max-width:none;padding:0}.container{max-width:100%!important}}
+
+        /* Impressão compacta: preserva espaço de assinatura e cabeçalho institucional. */
+        @page { size:A4; margin:9mm 11mm; }
+        @media print {
+          body { font-size:10.5px; line-height:1.23; }
+          .cabecalho-padrao { margin-bottom:8px !important; padding-bottom:0 !important; }
+          .cabecalho-padrao img { width:100% !important; height:auto !important; max-height:21mm !important; object-fit:contain; object-position:center; }
+          .titulo-ficha { margin-bottom:9px; padding:5px; font-size:12px; }
+          .secao-titulo { margin-top:10px; margin-bottom:5px; padding:3px 6px; }
+          .form-row { margin-bottom:5px; gap:7px; }
+          .form-group label { margin-bottom:1px; font-size:10px; }
+          input[type="text"],input[type="date"],select,textarea { padding:1px 0; font-size:10.5px; }
+          .termo-texto p { margin:5px 0; }
+          .termo-texto ol { margin:4px 0 5px; padding-left:20px; }
+          .termo-texto li { margin-bottom:3px; line-height:1.19; }
+          body.imprimindo-termo #painelTermo { font-size:10.5px; line-height:1.2; }
+          body.imprimindo-termo #painelTermo .form-row[style*="margin-top"] { margin-top:12px !important; }
+          body.imprimindo-termo #painelTermo .assinatura-linha { margin-top:21px !important; padding-top:4px; break-inside:avoid; }
+          body.imprimindo-termo #painelTermo .form-row:has(.assinatura-linha) { break-inside:avoid; page-break-inside:avoid; }
+          body.imprimindo-termo #painelTermo .termo-texto { orphans:2; widows:2; }
+        }
+
+        /* A interface administrativa nunca deve aparecer em documentos impressos.
+           Regra específica para superar o display:flex!important da barra de conta. */
+        @media print {
+          html body.com-sessao #barraConta,
+          html body #barraConta,
+          html body .topo-sistema,
+          html body .menu-sistema,
+          html body #telaLogin,
+          html body .no-print,
+          html body .dashboard,
+          html body .abas,
+          html body .acoes,
+          html body button,
+          html body #historicoFichas,
+          html body #painelDocumentos,
+          html body #painelBackup {
+            display:none !important;
+          }
+          html body.imprimindo-termo #areaFicha { display:none !important; }
+          html body.imprimindo-termo #painelTermo { display:block !important; }
+          html body:not(.imprimindo-termo) #painelTermo { display:none !important; }
+        }
+
+/* Impressão legível: prioriza fonte confortável e economiza espaço no cabeçalho. */
+@media print {
+  @page { size: A4; margin: 8mm 10mm; }
+  html body.imprimindo-termo #painelTermo { font-size:12px !important; line-height:1.29 !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto { font-size:12px !important; line-height:1.29 !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto p { margin:5px 0 !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto ol { margin:4px 0 !important; padding-left:19px !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto li { margin:0 0 3px !important; line-height:1.28 !important; }
+  html body.imprimindo-termo #painelTermo .cabecalho-padrao { margin:0 0 5px !important; padding:0 !important; }
+  html body.imprimindo-termo #painelTermo .cabecalho-padrao img { max-height:17mm !important; width:100% !important; object-fit:contain !important; }
+  html body.imprimindo-termo #painelTermo .titulo-ficha { margin:4px 0 7px !important; padding:4px !important; font-size:13px !important; }
+  html body.imprimindo-termo #painelTermo .form-row { margin-bottom:4px !important; }
+  html body.imprimindo-termo #painelTermo .form-group label,
+  html body.imprimindo-termo #painelTermo .form-group input { font-size:11.5px !important; }
+  html body.imprimindo-termo #painelTermo .form-row[style*="margin-top"] { margin-top:9px !important; }
+  html body.imprimindo-termo #painelTermo .assinatura-linha { margin-top:19px !important; padding-top:4px !important; font-size:11.5px !important; }
+}
+
+/* Diagramação A4 equilibrada: cabeçalho legível e texto distribuído. */
+@media print {
+  @page { size:A4; margin:8mm 11mm; }
+  html body.imprimindo-termo #painelTermo { font-size:11.8px !important; line-height:1.25 !important; }
+  html body.imprimindo-termo #painelTermo .cabecalho-padrao { margin:0 0 7px !important; padding:0 !important; }
+  html body.imprimindo-termo #painelTermo .cabecalho-padrao img { width:100% !important; height:auto !important; max-height:34mm !important; object-fit:contain !important; }
+  html body.imprimindo-termo #painelTermo .titulo-ficha { font-size:13px !important; padding:5px !important; margin:5px 0 9px !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto { font-size:11.8px !important; line-height:1.25 !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto p { margin:6px 0 !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto ol { margin:5px 0 !important; padding-left:20px !important; }
+  html body.imprimindo-termo #painelTermo .termo-texto li { margin-bottom:3px !important; line-height:1.25 !important; }
+  html body.imprimindo-termo #painelTermo .form-row { margin-bottom:5px !important; }
+  html body.imprimindo-termo #painelTermo .form-row[style*="margin-top"] { margin-top:12px !important; }
+  html body.imprimindo-termo #painelTermo .assinatura-linha { margin-top:19px !important; padding-top:5px !important; font-size:11.5px !important; }
+  html body.imprimindo-termo #painelTermo .form-row:has(.assinatura-linha) { break-inside:avoid !important; page-break-inside:avoid !important; }
+}
+
+/* Termo no padrão do modelo enviado: três assinaturas na mesma linha. */
+.assinaturas-termo {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px;}
+.assinaturas-termo .assinatura-linha {margin-top:0;text-align:center;font-size:12px;min-width:0;}
+@media print {
+ @page {size:A4;margin:11mm 12mm;}
+ html body.imprimindo-termo #painelTermo {font-size:12.5px!important;line-height:1.33!important;}
+ html body.imprimindo-termo #painelTermo .cabecalho-padrao img {max-height:31mm!important;width:100%!important;height:auto!important;object-fit:contain!important;}
+ html body.imprimindo-termo #painelTermo .titulo-ficha {font-size:13px!important;background:transparent!important;text-align:center!important;margin:7px 0 10px!important;padding:0!important;}
+ html body.imprimindo-termo #painelTermo .termo-texto {font-size:12.5px!important;line-height:1.33!important;}
+ html body.imprimindo-termo #painelTermo .termo-texto p {margin:7px 0!important;}
+ html body.imprimindo-termo #painelTermo .termo-texto li {margin-bottom:4px!important;line-height:1.3!important;}
+ html body.imprimindo-termo #painelTermo .assinaturas-termo {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:13px!important;margin-top:30px!important;break-inside:avoid!important;page-break-inside:avoid!important;}
+ html body.imprimindo-termo #painelTermo .assinaturas-termo .assinatura-linha {margin:0!important;padding-top:7px!important;font-size:11px!important;break-inside:avoid!important;}
+ html body #barraConta,html body .topo-sistema,html body .menu-sistema,html body #historicoFichas {display:none!important;}
+}
+
+/* Termo: data em branco quando não informada, espaço adequado para assinatura. */
+.data-termo-impressa {display:none;}
+@media print {
+ html body.imprimindo-termo #painelTermo input#termoData {display:none!important;visibility:hidden!important;}
+ html body.imprimindo-termo #painelTermo .data-termo-impressa {display:inline-block!important;font-size:12.5px!important;padding:2px 0 4px!important;min-width:125px!important;border-bottom:1px solid #222!important;text-align:center!important;white-space:nowrap!important;}
+ html body.imprimindo-termo #painelTermo .assinaturas-termo {gap:28px!important;margin-top:48px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+ html body.imprimindo-termo #painelTermo .assinaturas-termo .assinatura-linha {padding-top:11px!important;font-size:10.5px!important;line-height:1.35!important;}
+}
+
+@media print {
+  body.imprimindo-termo #painelTermo input[type="date"]#termoData {display:none!important;visibility:hidden!important;width:0!important;height:0!important;padding:0!important;border:0!important;}
+  body.imprimindo-termo #painelTermo #termoDataImpressa {display:inline-block!important;visibility:visible!important;border-bottom:1px solid #222!important;min-width:125px!important;text-align:center!important;}
+}
 </style>
 </head>
 <body class="sem-sessao">
@@ -527,7 +636,7 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
         <div class="form-group"><label>CPF:</label><input id="termoCpf" type="text"></div>
     </div>
     <div class="form-row">
-        <div class="form-group"><label>Data de ingresso:</label><input id="termoData" type="date"></div>
+        <div class="form-group"><label>Data de ingresso:</label><input id="termoData" type="date"><span id="termoDataImpressa" class="data-termo-impressa" aria-hidden="true">____/____/________</span></div>
         <div class="form-group"><label>Responsável/familiar de contato:</label><input id="termoResponsavel" type="text"></div>
     </div>
     <div class="termo-texto">
@@ -546,13 +655,10 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
         <p>Declaro que fui informado(a) de que este termo registra minha ciência e concordância com os compromissos apresentados, não significando renúncia a direitos, nem autorização para qualquer forma de tratamento degradante, constrangimento ou restrição ilegal de liberdade. Sei que posso solicitar esclarecimentos à equipe a qualquer momento.</p>
         <p>Comprometo-me a colaborar com o meu processo de recuperação e com a boa convivência na comunidade, comunicando à equipe qualquer situação que dificulte o cumprimento destes compromissos.</p>
     </div>
-    <div class="form-row" style="margin-top:35px">
-        <div class="form-group assinatura-linha">Assinatura do(a) acolhido(a)</div>
-        <div class="form-group assinatura-linha">Assinatura do responsável (se houver)</div>
-    </div>
-    <div class="form-row">
-        <div class="form-group assinatura-linha">Responsável pela apresentação do termo</div>
-        <div class="form-group assinatura-linha">Cacoal-RO, ____/____/________</div>
+    <div class="assinaturas-termo">
+        <div class="assinatura-linha">Assinatura do(a) acolhido(a)</div>
+        <div class="assinatura-linha">Assinatura do responsável (se houver)</div>
+        <div class="assinatura-linha">Responsável pela apresentação do termo</div>
     </div>
     <div class="acoes no-print">
         <button type="button" class="btn" onclick="preencherTermoDaFicha()">Puxar dados da ficha</button>
@@ -613,6 +719,11 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
 <!-- HISTÓRICO DE FICHAS NA NUVEM -->
 <div class="historico-container no-print" id="historicoFichas">
     <h3>Fichas cadastradas na nuvem</h3>
+    <div class="pesquisa-acolhidos">
+        <label for="pesquisaNomeAcolhido">Pesquisar acolhido pelo nome</label>
+        <input type="search" id="pesquisaNomeAcolhido" placeholder="Digite o nome ou parte do nome" autocomplete="off" oninput="renderizarHistorico()" aria-controls="tabelaHistorico">
+        <small id="resultadoPesquisaAcolhidos" aria-live="polite"></small>
+    </div>
     <p class="status-info" id="statusHistorico">As fichas serão carregadas da sua conta protegida no Supabase.</p>
     <table id="tabelaHistorico">
         <thead>
@@ -859,12 +970,23 @@ function preencherTermoDaFicha() {
     document.getElementById('termoCpf').value = document.getElementById('cpf').value;
     const responsavel = document.querySelector('[name="responsavel"]');
     document.getElementById('termoResponsavel').value = responsavel ? responsavel.value : '';
-    document.getElementById('termoData').value = new Date().toISOString().slice(0,10);
+    document.getElementById('termoData').value = document.querySelector('[name="data_entrada"]')?.value || ''; 
 }
+function atualizarDataImpressa() {
+    const valor = document.getElementById('termoData').value;
+    const destino = document.getElementById('termoDataImpressa');
+    if (!destino) return;
+    if (!valor) { destino.textContent = '____/____/________'; return; }
+    const partes = valor.split('-');
+    destino.textContent = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : '____/____/________';
+}
+window.addEventListener('beforeprint', atualizarDataImpressa);
+window.addEventListener('afterprint', () => document.body.classList.remove('imprimindo-termo'));
 function imprimirTermo() {
     document.body.classList.add('imprimindo-termo');
+    atualizarDataImpressa();
     window.print();
-    setTimeout(() => document.body.classList.remove('imprimindo-termo'), 700);
+    // O modo de impressão é encerrado no evento afterprint.
 }
 function normalizarTextoDocumento(valor) {
     return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -995,10 +1117,24 @@ function renderizarHistorico() {
         tr.appendChild(td);
         tbody.appendChild(tr);
         if (status) status.textContent = 'Conectado ao banco de dados. Ainda não há fichas cadastradas.';
+        const contador = document.getElementById('resultadoPesquisaAcolhidos');
+        if (contador) contador.textContent = '0 ficha(s) encontrada(s).';
         return;
     }
     if (status) status.textContent = 'Fichas carregadas da nuvem com acesso protegido pela sua conta.';
-    fichasNuvem.forEach(item => {
+    const textoBusca = (document.getElementById('pesquisaNomeAcolhido')?.value || '').trim();
+    const normalizar = texto => String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    const fichasFiltradas = fichasNuvem.filter(item => normalizar(item.dados?.nome).includes(normalizar(textoBusca)));
+    const contador = document.getElementById('resultadoPesquisaAcolhidos');
+    if (contador) contador.textContent = fichasFiltradas.length + ' de ' + fichasNuvem.length + ' ficha(s) encontrada(s).';
+    if (!fichasFiltradas.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 7;
+        td.textContent = 'Nenhum acolhido encontrado com esse nome.';
+        tr.appendChild(td); tbody.appendChild(tr);
+    }
+    fichasFiltradas.forEach(item => {
         const tr = document.createElement('tr');
         const dados = item.dados || {};
         [item.dataHora || '', dados.nome || 'N/A', dados.cpf || 'N/A', dados.data_entrada || '—', dados.data_saida || '—', dados.situacao_acolhimento || 'Em acolhimento'].forEach(valor => {
@@ -1144,6 +1280,7 @@ function carregarFicha(id) {
             });
         }
     });
+    mostrarAba('ficha', document.querySelector(".aba-btn[onclick*=\"'ficha'\"]"));
     alert('Ficha carregada. Ao clicar em Guardar Ficha, as alterações serão salvas no mesmo registro da nuvem.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
