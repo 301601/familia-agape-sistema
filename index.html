@@ -741,6 +741,7 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
                 <th>CPF</th>
                 <th>Entrada</th>
                 <th>Saída</th>
+                <th>Tempo de acolhimento</th>
                 <th>Situação</th>
                 <th>Ações</th>
             </tr>
@@ -1109,8 +1110,24 @@ function converterFichaDaNuvem(registro) {
     return {
         id: registro.id,
         dataHora: registro.created_at ? new Date(registro.created_at).toLocaleString('pt-BR') : '',
-        dados: registro.ficha_dados || {}
+        dados: registro.ficha_dados || {},
+        status: registro.status
     };
+}
+
+// Calcula dias corridos usando datas civis, sem diferença de fuso ou horário de verão.
+function calcularTempoAcolhimento(entrada, saida, situacao) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(entrada || '')) return '—';
+    const inicio = Date.parse(entrada + 'T00:00:00Z');
+    if (!Number.isFinite(inicio)) return '—';
+    const encerrado = ['concluido', 'desligado', 'desistente'].includes(situacao);
+    if (encerrado && !/^\d{4}-\d{2}-\d{2}$/.test(saida || '')) return 'Saída sem data';
+    const hoje = new Date();
+    const fimTexto = encerrado ? saida : [hoje.getFullYear(), String(hoje.getMonth()+1).padStart(2,'0'), String(hoje.getDate()).padStart(2,'0')].join('-');
+    const fim = Date.parse(fimTexto + 'T00:00:00Z');
+    if (!Number.isFinite(fim) || fim < inicio) return 'Verificar datas';
+    const dias = Math.round((fim - inicio) / 86400000);
+    return dias + (dias === 1 ? ' dia' : ' dias');
 }
 
 function renderizarHistorico() {
@@ -1121,7 +1138,7 @@ function renderizarHistorico() {
     if (!fichasNuvem.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
-        td.colSpan = 7;
+        td.colSpan = 8;
         td.textContent = 'Nenhuma ficha cadastrada na nuvem.';
         tr.appendChild(td);
         tbody.appendChild(tr);
@@ -1139,14 +1156,14 @@ function renderizarHistorico() {
     if (!fichasFiltradas.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
-        td.colSpan = 7;
+        td.colSpan = 8;
         td.textContent = 'Nenhum acolhido encontrado com esse nome.';
         tr.appendChild(td); tbody.appendChild(tr);
     }
     fichasFiltradas.forEach(item => {
         const tr = document.createElement('tr');
         const dados = item.dados || {};
-        [item.dataHora || '', dados.nome || 'N/A', dados.cpf || 'N/A', dados.data_entrada || '—', dados.data_saida || '—', dados.situacao_acolhimento || 'Em acolhimento'].forEach(valor => {
+        [item.dataHora || '', dados.nome || 'N/A', dados.cpf || 'N/A', dados.data_entrada || '—', dados.data_saida || '—', calcularTempoAcolhimento(dados.data_entrada, dados.data_saida, item.status || ({'Em acolhimento':'acolhido','Conclusão do tratamento':'concluido','Desligamento':'desligado','Desistência':'desistente'})[dados.situacao_acolhimento]), dados.situacao_acolhimento || 'Em acolhimento'].forEach(valor => {
             const td = document.createElement('td'); td.textContent = valor; tr.appendChild(td);
         });
         const td = document.createElement('td');
