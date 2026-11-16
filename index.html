@@ -798,6 +798,7 @@ body.com-sessao .container,body.com-sessao .historico-container,body.com-sessao 
         <input type="file" id="arquivoBackup" accept=".agape,application/json">
         <label for="senhaBackupRestaurar">Senha usada na criação do backup:</label>
         <input type="password" id="senhaBackupRestaurar" autocomplete="current-password" placeholder="Senha do backup">
+        <button type="button" class="btn btn-success" onclick="verificarIntegridadeBackup()">Verificar integridade do backup (sem restaurar)</button>
         <button type="button" class="btn" onclick="restaurarBackupCriptografado()">Verificar e restaurar backup</button>
         <p class="status-info">A restauração adiciona os registros que ainda não existem neste navegador. Ela não apaga os dados atuais. Faça um backup dos dados atuais antes de restaurar.</p>
     </div>
@@ -1594,6 +1595,48 @@ async function exportarBackupCriptografado() {
         document.getElementById('senhaBackupConfirmar').value = '';
     }
 }
+// Validação independente: apenas leitura, sem gravar no navegador ou na nuvem.
+async function verificarIntegridadeBackup() {
+    const status = document.getElementById('statusBackup');
+    const arquivo = document.getElementById('arquivoBackup').files[0];
+    const senha = document.getElementById('senhaBackupRestaurar').value;
+    if (!arquivo) { status.textContent = 'Selecione um arquivo de backup para verificar.'; return; }
+    if (!senha) { status.textContent = 'Informe a senha usada para criar o backup.'; return; }
+    if (!globalThis.crypto || !crypto.subtle) { status.textContent = 'Este navegador não disponibilizou criptografia segura.'; return; }
+    try {
+        status.textContent = 'Verificando a senha, a integridade e a estrutura do backup...';
+        const pacote = JSON.parse(await arquivo.text());
+        if (pacote.formato !== 'AGAPE_BACKUP' || ![1, 2].includes(pacote.versao) || pacote.algoritmo !== 'AES-256-GCM') {
+            throw new Error('Arquivo não reconhecido ou versão incompatível.');
+        }
+        const chave = await derivarChaveBackup(senha, base64ParaBytes(pacote.salt));
+        const claro = await crypto.subtle.decrypt({name:'AES-GCM', iv:base64ParaBytes(pacote.iv)}, chave, base64ParaBytes(pacote.dados));
+        const dados = JSON.parse(new TextDecoder().decode(claro));
+        if (dados.aplicacao !== 'FamiliaAgape') throw new Error('O conteúdo não pertence ao sistema Família Ágape.');
+        const fichasLocais = dados.fichasLocais || dados.fichas || [];
+        const documentosLocais = dados.documentosLocais || dados.documentos || [];
+        if (!Array.isArray(fichasLocais) || !Array.isArray(documentosLocais)) throw new Error('A estrutura dos dados locais é inválida.');
+        if (pacote.versao === 2) {
+            if (dados.versao !== 2 || !Array.isArray(dados.fichasNuvem) || !Array.isArray(dados.documentosNuvem)) {
+                throw new Error('A estrutura dos dados da nuvem está incompleta.');
+            }
+        }
+        const fichasNuvem = Array.isArray(dados.fichasNuvem) ? dados.fichasNuvem.length : 0;
+        const documentosNuvem = Array.isArray(dados.documentosNuvem) ? dados.documentosNuvem.length : 0;
+        status.textContent = 'Backup verificado com sucesso! Senha correta, autenticação criptográfica válida e estrutura reconhecida. ' +
+            'Fichas na nuvem: ' + fichasNuvem + '; documentos na nuvem: ' + documentosNuvem +
+            '; fichas locais antigas: ' + fichasLocais.length + '; documentos locais antigos: ' + documentosLocais.length +
+            '. Nenhum dado foi restaurado ou alterado.';
+    } catch (erro) {
+        console.error('Falha na verificação do backup:', erro);
+        status.textContent = erro.name === 'OperationError'
+            ? 'Não foi possível validar o backup: senha incorreta ou arquivo danificado.'
+            : 'Backup não validado: ' + (erro.message || 'arquivo inválido.');
+    } finally {
+        document.getElementById('senhaBackupRestaurar').value = '';
+    }
+}
+
 async function restaurarBackupCriptografado() {
     const status = document.getElementById('statusBackup');
     const arquivo = document.getElementById('arquivoBackup').files[0];
